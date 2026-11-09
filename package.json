@@ -1,0 +1,19 @@
+{
+  "name": "bar-pod-bebenkiem",
+  "version": "1.0.0",
+  "description": "Karciany blef z rosyjską ruletką w 3D. Multiplayer P2P w przeglądarce, do 8 graczy.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "peer-server": "node tools/peer-server.mjs"
+  },
+  "dependencies": {
+    "peerjs": "1.5.5",
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "express": "^4.21.2",
+    "peer": "^1.0.2"
+  }
+}
