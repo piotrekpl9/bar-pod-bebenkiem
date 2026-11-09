@@ -59,7 +59,8 @@ const faceMats = {}; ['K', 'Q', 'A', 'J'].forEach(t => faceMats[t] = new THREE.M
 const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.6 });
 const edgeMat = mat(0xd8ccb0);
 const cardGeo = new THREE.BoxGeometry(0.3, 0.006, 0.42);
-const makeCard3D = () => { const m = new THREE.Mesh(cardGeo, [edgeMat, edgeMat, backMat, faceMats.K, edgeMat, edgeMat]); m.castShadow = true; m.receiveShadow = true; return m; };
+// zakryta karta ma rewers z OBU stron – twarz pojawia się dopiero przy odkryciu (reveal)
+const makeCard3D = () => { const m = new THREE.Mesh(cardGeo, [edgeMat, edgeMat, backMat, backMat, edgeMat, edgeMat]); m.castShadow = true; m.receiveShadow = true; return m; };
 
 function setMsg(h) { $('#msg').innerHTML = h; }
 function bubble(seat, text, liar = false) {

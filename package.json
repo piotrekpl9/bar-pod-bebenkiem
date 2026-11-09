@@ -9,6 +9,7 @@
     "peer-server": "node tools/peer-server.mjs"
   },
   "dependencies": {
+    "@fontsource/sancreek": "^5.3.0",
     "peerjs": "1.5.5",
     "three": "0.128.0"
   },

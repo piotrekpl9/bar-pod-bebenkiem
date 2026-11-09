@@ -116,13 +116,13 @@ for (const y of [1.33, 1.88, 2.43]) {
 // neon
 const signTex = canvasTex(1024, 220, (g, w, h) => {
   g.clearRect(0, 0, w, h); g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '96px Rye, Georgia, serif'; g.shadowColor = '#ff7a1a'; g.shadowBlur = 36;
+  g.font = '96px Sancreek, Georgia, serif'; g.shadowColor = '#ff7a1a'; g.shadowBlur = 36;
   g.fillStyle = '#ffb060'; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6); g.shadowBlur = 12; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6);
   g.fillStyle = '#fff1d8'; g.shadowBlur = 0; g.globalAlpha = 0.5; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6);
 });
 const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.77), new THREE.MeshBasicMaterial({ map: signTex, transparent: true, toneMapped: false, depthWrite: false }));
 sign.position.set(0, 3.25, shelfZ - 0.05); scene.add(sign);
-if (document.fonts && document.fonts.load) document.fonts.load('96px Rye').then(() => { const u = signTex.userData; u.draw(u.c.getContext('2d'), u.c.width, u.c.height); signTex.needsUpdate = true; }).catch(() => {});
+if (document.fonts && document.fonts.load) document.fonts.load('96px Sancreek').then(() => { const u = signTex.userData; u.draw(u.c.getContext('2d'), u.c.width, u.c.height); signTex.needsUpdate = true; }).catch(() => {});
 const signLight = new THREE.PointLight(0xff8a30, 1.2, 6, 2); signLight.position.set(0, 3.0, shelfZ + 0.6); scene.add(signLight);
 
 // beczki po bokach
