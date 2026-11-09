@@ -1,8 +1,9 @@
 // Menu, poczekalnia, ekran końca gry, zasady.
 
-import { isTableSize } from '../core/constants';
+import { KINDS, isTableSize } from '../core/constants';
+import { KIND_INFO, isKind } from '../core/kinds';
 import { deckDesc, people, rounds } from '../core/text';
-import type { GameEvent, Mode, PublicState, TableSize } from '../core/types';
+import type { GameEvent, Kind, Mode, PublicState, TableSize } from '../core/types';
 import type { LobbyInfo } from '../net/protocol';
 import { $, copyText, showScreen, status, store } from './dom';
 
@@ -10,6 +11,7 @@ import { $, copyText, showScreen, status, store } from './dom';
 export const settings = {
   size: (() => { const v = Number(store.get('bpb-n')); return isTableSize(v) ? v : 4; })() as TableSize,
   mode: (store.get('bpb-mode') === 'special' ? 'special' : 'classic') as Mode,
+  kind: (() => { const k = store.get('bpb-kind'); return isKind(k) ? k : 'frog'; })() as Kind,
   nick(): string {
     const n = $<HTMLInputElement>('#nick').value.trim().replace(/\s+/g, ' ').slice(0, 14);
     store.set('bpb-nick', n);
@@ -36,6 +38,30 @@ export function paintSegments(size: TableSize, mode: Mode): void {
   document.querySelectorAll<HTMLButtonElement>('.modeseg button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
 }
 
+// ---------- wybór postaci ----------
+/** Rysuje 8 przycisków postaci. `taken` = zajęte przez innych (wyszarzone). */
+export function renderKindPicker(sel: string, current: Kind, taken: ReadonlySet<Kind>, onPick: (k: Kind) => void): void {
+  const box = $(sel);
+  box.innerHTML = '';
+  for (const k of KINDS) {
+    const b = document.createElement('button');
+    const info = KIND_INFO[k];
+    b.innerHTML = `<span class="e">${info.emoji}</span>${info.label}`;
+    b.classList.toggle('on', k === current);
+    b.disabled = taken.has(k) && k !== current;
+    b.title = b.disabled ? `${info.label}: zajęta` : info.label;
+    b.addEventListener('click', () => {
+      settings.kind = k; store.set('bpb-kind', k);
+      onPick(k);
+    });
+    box.appendChild(b);
+  }
+}
+export function initMenuKindPicker(): void {
+  const draw = () => renderKindPicker('#kindPick', settings.kind, new Set(), () => draw());
+  draw();
+}
+
 /** Jeśli w adresie jest kod pokoju (#ABCDE), wpisuje go w pole „KOD”. */
 export function prefillCodeFromHash(): void {
   const h = location.hash.replace('#', '').toUpperCase();
@@ -43,7 +69,7 @@ export function prefillCodeFromHash(): void {
 }
 
 // ---------- poczekalnia ----------
-export interface LobbyContext { isHost: boolean; mySeat: number; kick(i: number): void }
+export interface LobbyContext { isHost: boolean; mySeat: number; kick(i: number): void; pick(k: Kind): void }
 
 export function renderLobby(info: LobbyInfo, ctx: LobbyContext): void {
   $('#roomCode').textContent = info.code;
@@ -53,9 +79,9 @@ export function renderLobby(info: LobbyInfo, ctx: LobbyContext): void {
     const li = document.createElement('div');
     li.className = 'seat' + (s ? '' : ' empty') + (i === ctx.mySeat ? ' me' : '');
     const nm = document.createElement('span');
-    nm.textContent = s ? s.name + (i === ctx.mySeat ? ' (ty)' : '') + (i === 0 ? ' 👑' : '') + (s.isBot ? ' 🤖' : '') : 'wolne miejsce';
+    nm.textContent = s ? `${KIND_INFO[s.kind]?.emoji ?? ''} ${s.name}` + (i === ctx.mySeat ? ' (ty)' : '') + (s.host ? ' 👑' : '') + (s.isBot ? ' 🤖' : '') : 'wolne miejsce';
     li.appendChild(nm);
-    if (ctx.isHost && s && i !== 0) {
+    if (ctx.isHost && s && !s.host) {
       const k = document.createElement('button');
       k.className = 'kick'; k.textContent = '✕'; k.title = 'Wyrzuć z pokoju';
       k.addEventListener('click', () => ctx.kick(i));
@@ -67,6 +93,10 @@ export function renderLobby(info: LobbyInfo, ctx: LobbyContext): void {
   $('#clientWait').classList.toggle('hide', ctx.isHost);
   $('#tableInfo').innerHTML = `Stół na ${people(info.n)} · tryb: <b>${info.mode === 'special' ? 'specjalne karty' : 'klasyczny'}</b><br>${deckDesc(info.n, info.mode)}`;
   paintSegments(info.n, info.mode);
+  $<HTMLInputElement>('#shuffleSeats').checked = info.shuffle;
+  const me = info.seats[ctx.mySeat];
+  const taken = new Set(info.seats.flatMap((s, i) => (s && i !== ctx.mySeat ? [s.kind] : [])));
+  renderKindPicker('#kindPickLobby', me?.kind ?? settings.kind, taken, k => ctx.pick(k));
 }
 
 const IS_WEB = /^https?:$/.test(location.protocol);

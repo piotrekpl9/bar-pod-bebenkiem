@@ -35,6 +35,8 @@
     <h1>Bar pod Bębenkiem</h1>
     <p>Karciany blef z rosyjską ruletką. Graj ze znajomymi przez internet albo z botami.</p>
     <div class="row"><input class="txt" id="nick" maxlength="14" placeholder="Twój nick" autocomplete="off"></div>
+    <div class="small kinds-title">Twoja postać</div>
+    <div class="kinds" id="kindPick"></div>
     <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Graczy przy stole:</span>
       <div class="seg" id="sizeSeg"><button data-n="4">4</button><button data-n="6">6</button><button data-n="8">8</button></div>
     </div>
@@ -63,10 +65,13 @@
     <button class="act btn-dark" id="shareBtn" style="font-size:15px;padding:8px 16px">Wyślij zaproszenie</button>
     <div class="small" id="tableInfo" style="margin-top:10px"></div>
     <div id="seatList"></div>
+    <div class="small kinds-title">Twoja postać</div>
+    <div class="kinds" id="kindPickLobby"></div>
     <div id="hostControls">
       <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Graczy przy stole:</span><div class="seg" id="sizeSegLobby"><button data-n="4">4</button><button data-n="6">6</button><button data-n="8">8</button></div></div>
       <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Tryb:</span><div class="seg modeseg" id="modeSegLobby"><button data-m="classic">Klasyczny</button><button data-m="special">Specjalne karty</button></div></div>
       <label class="chk"><input type="checkbox" id="fillBots" checked> Wolne miejsca zajmą boty</label>
+      <label class="chk"><input type="checkbox" id="shuffleSeats" checked> Losowe miejsca przy stole</label>
       <button class="act btn-gold" id="startBtn">Start</button>
     </div>
     <p id="clientWait" class="hide">Czekamy, aż host zacznie grę…</p>

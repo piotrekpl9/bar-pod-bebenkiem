@@ -41,6 +41,8 @@ export type GameEvent =
 /** Zdarzenia wysyłane tylko do jednego gracza. */
 export type PrivateEvent =
   | { t: 'hand'; cards: Card[]; deal: boolean }
+  /** gracz dostał inne miejsce (losowanie miejsc, zmiana rozmiaru stołu) */
+  | { t: 'seat'; seat: number }
   | {
       t: 'sync'; mode: Mode; st: PublicState; table: Rank; round: number;
       pileN: number; lastN: number; active: number;

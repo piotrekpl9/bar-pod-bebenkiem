@@ -1,7 +1,7 @@
 // Gracz dołączający do pokoju hosta.
 
 import { Peer, type DataConnection } from 'peerjs';
-import type { ViewEvent } from '../core/types';
+import type { Kind, ViewEvent } from '../core/types';
 import { session } from '../ui/dom';
 import { handleEvent, type PlayerAction } from '../view/game-view';
 import { isMsg, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
@@ -32,7 +32,7 @@ export class ClientSession {
     }, 3000);
   }
 
-  join(code: string, name: string): void {
+  join(code: string, name: string, kind: Kind): void {
     this.code = code;
     this.peer?.destroy();
     const peer = new Peer(peerOptions());
@@ -50,7 +50,7 @@ export class ClientSession {
       conn.on('open', () => {
         connected = true; clearTimeout(timeout);
         this.hostSeen = Date.now();
-        this.send({ t: 'hello', name, token });
+        this.send({ t: 'hello', name, token, kind });
       });
       conn.on('data', d => this.onData(d));
       conn.on('close', () => this.lost());
@@ -65,6 +65,7 @@ export class ClientSession {
   }
 
   act(a: PlayerAction): void { this.send({ t: 'act', a }); }
+  pick(kind: Kind): void { this.send({ t: 'pick', kind }); }
 
   private send(msg: ClientMsg): void {
     try { if (this.conn?.open) void this.conn.send(msg); } catch (e) { console.warn(e); }

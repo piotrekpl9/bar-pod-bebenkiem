@@ -1,5 +1,5 @@
 import type { PeerOptions } from 'peerjs';
-import type { Mode, TableSize, ViewEvent } from '../core/types';
+import type { Kind, Mode, TableSize, ViewEvent } from '../core/types';
 import type { PlayerAction } from '../view/game-view';
 
 /** Stan poczekalni wysyłany wszystkim w pokoju. */
@@ -9,7 +9,10 @@ export interface LobbyInfo {
   n: TableSize;
   mode: Mode;
   running: boolean;
-  seats: ({ name: string; isBot: boolean } | null)[];
+  /** host = gospodarz pokoju (nie da się go wyrzucić) */
+  seats: ({ name: string; isBot: boolean; kind: Kind; host: boolean } | null)[];
+  /** czy host losuje miejsca przed partią */
+  shuffle: boolean;
 }
 
 /** Wiadomości host → gracz. */
@@ -23,7 +26,8 @@ export type HostMsg =
 
 /** Wiadomości gracz → host. */
 export type ClientMsg =
-  | { t: 'hello'; name: string; token: string }
+  | { t: 'hello'; name: string; token: string; kind?: Kind }
+  | { t: 'pick'; kind: Kind }
   | { t: 'act'; a: PlayerAction }
   | { t: 'pong' };
 

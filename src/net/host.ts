@@ -2,11 +2,12 @@
 // Ta sama klasa obsługuje grę z botami (bez sieci).
 
 import { Peer, type DataConnection } from 'peerjs';
-import { KINDS } from '../core/constants';
 import { GameEngine, botSlot, newSlot, type EngineIO, type PlayerSlot } from '../core/engine';
+import { freeKind, isKind, takenKinds } from '../core/kinds';
+import { shuffle } from '../core/rng';
 import { isValidPlay } from '../core/rules';
 import { people } from '../core/text';
-import type { Action, Card, GameEvent, Mode, TableSize, TurnRequest } from '../core/types';
+import type { Action, Card, GameEvent, Kind, Mode, TableSize, TurnRequest } from '../core/types';
 import { sleep } from '../ui/dom';
 import { drained, handleEvent, type PlayerAction } from '../view/game-view';
 import { cleanName, genCode, isMsg, newToken, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
@@ -40,6 +41,8 @@ export class HostSession implements EngineIO {
   private pending: Pending | null = null;
   private meta = new WeakMap<DataConnection, ConnMeta>();
   private hbLast = Date.now();
+  /** losowanie miejsc przed każdą partią */
+  shuffleSeats = true;
 
   constructor(public size: TableSize, public mode: Mode, readonly online: boolean, private readonly hooks: HostHooks) {}
 
@@ -47,21 +50,52 @@ export class HostSession implements EngineIO {
 
   // ================= start =================
 
-  /** Gra z botami: od razu startuje partię. */
-  static solo(name: string, size: TableSize, mode: Mode, hooks: HostHooks): HostSession {
+  /** Gra z botami: od razu startuje partię (miejsca zawsze losowe). */
+  static solo(name: string, kind: Kind, size: TableSize, mode: Mode, hooks: HostHooks): HostSession {
     const h = new HostSession(size, mode, false, hooks);
-    h.slots = KINDS.slice(0, size).map((k, i) => (i === 0 ? { ...newSlot(name, k, false), local: true } : botSlot(i)));
+    h.slots = Array.from({ length: size }, (_, i) => (i === 0 ? { ...newSlot(name, kind, false), local: true } : null));
+    h.fillWithBots();
+    h.randomizeSeats();
     void h.play();
     return h;
   }
 
+  /** Miejsce gracza siedzącego przy tym komputerze. */
+  get localSeat(): number { return this.slots.findIndex(s => s?.local); }
+
+  /** Wolne miejsca zajmują boty z postaciami, których nikt nie wybrał. */
+  private fillWithBots(): void {
+    for (let i = 0; i < this.slots.length; i++) {
+      if (this.slots[i]) continue;
+      const taken = new Set(this.slots.flatMap(s => (s ? [s.kind] : [])));
+      this.slots[i] = botSlot(freeKind(undefined, taken));
+    }
+  }
+
+  /** Tasuje miejsca i mówi każdemu człowiekowi, gdzie teraz siedzi. */
+  private randomizeSeats(): void {
+    this.slots = shuffle(this.slots.slice(), Math.random);
+    this.announceSeats();
+  }
+
+  private announceSeats(): void {
+    this.slots.forEach((s, i) => {
+      if (!s || s.isBot) return;
+      if (s.local) handleEvent({ t: 'seat', seat: i });
+      else if (s.conn) {
+        const m = this.meta.get(s.conn); if (m) m.seat = i;
+        this.send(s.conn, { t: 'seat', seat: i });
+      }
+    });
+  }
+
   /** Zakłada pokój online. */
-  open(name: string): void {
+  open(name: string, kind: Kind): void {
     this.code = genCode();
     const peer = new Peer(roomPeerId(this.code), peerOptions());
     this.peer = peer;
     peer.on('open', () => {
-      this.slots = Array.from({ length: this.size }, (_, i) => (i === 0 ? { ...newSlot(name, KINDS[0], false), local: true } : null));
+      this.slots = Array.from({ length: this.size }, (_, i) => (i === 0 ? { ...newSlot(name, kind, false), local: true } : null));
       this.hooks.opened(this.code);
       this.broadcastLobby();
     });
@@ -75,7 +109,7 @@ export class HostSession implements EngineIO {
       setTimeout(() => { if (!peer.destroyed && peer.disconnected) { try { peer.reconnect(); } catch { /* spróbujemy później */ } } }, 3000);
     });
     peer.on('error', (e: { type: string }) => {
-      if (e.type === 'unavailable-id') { peer.destroy(); this.open(name); return; }
+      if (e.type === 'unavailable-id') { peer.destroy(); this.open(name, kind); return; }
       if (['network', 'server-error', 'socket-error'].includes(e.type) && !this.slots[0]) {
         this.hooks.status(`Nie mogę połączyć się z serwerem pokoi (${e.type}). Sprawdź internet i spróbuj ponownie.`);
         try { peer.destroy(); } catch { /* już zamknięty */ }
@@ -88,8 +122,9 @@ export class HostSession implements EngineIO {
   startGame(fillBots: boolean): string | null {
     // boty z poprzedniej partii i rozłączeni gracze nie przechodzą do następnej
     this.slots = this.slots.map(s => (s && s.isBot && (s.fill || !s.conn) ? null : s));
-    if (fillBots) this.slots = this.slots.map((s, i) => s ?? botSlot(i));
+    if (fillBots) this.fillWithBots();
     if (this.slots.filter(Boolean).length < 2) return 'Potrzeba co najmniej 2 graczy. Zaproś kogoś albo włącz boty.';
+    if (this.shuffleSeats) this.randomizeSeats();
     void this.play();
     return null;
   }
@@ -153,14 +188,15 @@ export class HostSession implements EngineIO {
     const msg = d as ClientMsg;
     if (msg.t === 'pong') return;
     if (msg.t === 'act') { if (m.seat != null) this.act(m.seat, msg.a); return; }
+    if (msg.t === 'pick') { if (m.seat != null) this.pick(m.seat, msg.kind); return; }
     if (msg.t === 'hello' && m.seat == null) this.onHello(conn, m, msg);
   }
 
   private onHello(conn: DataConnection, m: ConnMeta, msg: Extract<ClientMsg, { t: 'hello' }>): void {
     // powrót po odświeżeniu strony: ten sam token = to samo miejsce
     const token = typeof msg.token === 'string' ? msg.token : '';
-    const back = token ? this.slots.findIndex((q, i) => i > 0 && q?.token === token) : -1;
-    if (back > 0) {
+    const back = token ? this.slots.findIndex(q => q && !q.local && q.token === token) : -1;
+    if (back >= 0) {
       const q = this.slots[back]!;
       const old = q.conn;
       if (old && old !== conn) { const om = this.meta.get(old); if (om) om.seat = null; try { old.close(); } catch { /* już zamknięte */ } }
@@ -171,14 +207,15 @@ export class HostSession implements EngineIO {
       else this.broadcastLobby();
       return;
     }
-    const free = this.slots.findIndex((s, i) => i > 0 && (!s || (s.isBot && s.fill)));
+    const free = this.slots.findIndex(s => !s || (s.isBot && s.fill));
     if (this.running || free < 0) {
       this.send(conn, { t: 'reject', reason: this.running ? 'Gra już trwa. Poczekaj na koniec partii.' : `Stół jest pełny (${people(this.size)}).` });
       setTimeout(() => conn.close(), 400);
       return;
     }
     const newTok = newToken();
-    this.slots[free] = { ...newSlot(cleanName(msg.name), KINDS[free], false), conn, token: newTok };
+    const kind = freeKind(isKind(msg.kind) ? msg.kind : undefined, takenKinds(this.slots, free));
+    this.slots[free] = { ...newSlot(cleanName(msg.name), kind, false), conn, token: newTok };
     m.seat = free;
     this.send(conn, { t: 'welcome', seat: free, code: this.code, token: newTok });
     this.broadcastLobby();
@@ -237,7 +274,7 @@ export class HostSession implements EngineIO {
 
   kick(i: number): void {
     const q = this.slots[i];
-    if (!q || q.local || i === 0) return;
+    if (!q || q.local) return;
     const c = q.conn;
     if (c) {
       this.send(c, { t: 'kicked' });
@@ -256,20 +293,25 @@ export class HostSession implements EngineIO {
     const seats: (HostSlot | null)[] = Array.from({ length: n }, () => null);
     if (n < this.size) {
       // przesadź ludzi na początek stołu i powiadom ich o nowym miejscu
-      humans.forEach((oldI, k) => {
-        const s = this.slots[oldI]!;
-        seats[k] = s; s.kind = KINDS[k];
-        if (k !== oldI && s.conn) {
-          const m = this.meta.get(s.conn); if (m) m.seat = k;
-          this.send(s.conn, { t: 'welcome', seat: k, code: this.code, token: s.token ?? '' });
-        }
-      });
+      humans.forEach((oldI, k) => { seats[k] = this.slots[oldI]; });
     } else humans.forEach(i => { seats[i] = this.slots[i]; });
     this.slots = seats;
     this.size = n;
+    this.announceSeats();
     this.broadcastLobby();
     return null;
   }
+
+  /** Zmiana postaci w poczekalni. Zajęta przez kogoś innego – ignorowana. */
+  pick(seat: number, kind: unknown): void {
+    const s = this.slots[seat];
+    if (this.running || !s || s.isBot || !isKind(kind)) return;
+    if (takenKinds(this.slots, seat).has(kind)) return;
+    s.kind = kind;
+    this.broadcastLobby();
+  }
+
+  setShuffle(on: boolean): void { this.shuffleSeats = on; this.broadcastLobby(); }
 
   setMode(m: Mode): void {
     if (this.running) return;
@@ -280,7 +322,8 @@ export class HostSession implements EngineIO {
   lobbyInfo(): LobbyInfo {
     return {
       t: 'lobby', code: this.code, n: this.size, mode: this.mode, running: this.running,
-      seats: this.slots.map(s => (s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot } : null)),
+      seats: this.slots.map(s => (s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot, kind: s.kind, host: !!s.local } : null)),
+      shuffle: this.shuffleSeats,
     };
   }
 

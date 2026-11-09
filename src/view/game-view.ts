@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { KINDS } from '../core/constants';
 import { isTruthful } from '../core/rules';
 import { FULL, RELIEF, SPECIAL_DESC, cardLabel, claimText, deckDesc } from '../core/text';
-import type { Card, GameEvent, Mode, PublicSeat, PublicState, Rank, TableSize, ViewEvent } from '../core/types';
+import type { Card, GameEvent, Kind, Mode, PublicSeat, PublicState, Rank, TableSize, ViewEvent } from '../core/types';
 import { $, esc, hideScreens, sleep } from '../ui/dom';
 import { SFX, initAudio } from './audio';
 import { GUN_REST_POS, GUN_REST_Q, fanGeo, fanMat, gun, layoutState, makeCharacter, seatPos, type Character } from './characters';
@@ -45,7 +45,12 @@ const seatName = (s: number) => (s === V.mySeat ? 'Ty' : V.seats[s]?.name ?? '?'
 const isTrue = (c: Card) => isTruthful(c, V.table);
 
 // ---------- postacie i podpisy ----------
-const chars: Character[] = KINDS.map(k => { const c = makeCharacter(k); c.root.visible = false; scene.add(c.root); return c; });
+// Jeden model na postać; przy stole każda postać siedzi najwyżej raz, a miejsce wynika z wyboru gracza.
+const models = Object.fromEntries(KINDS.map(k => {
+  const c = makeCharacter(k); c.root.visible = false; scene.add(c.root); return [k, c];
+})) as Record<Kind, Character>;
+/** Model postaci siedzącej na miejscu `i` (null = puste miejsce). */
+const charAt = (i: number): Character | null => { const s = V.seats[i]; return s ? models[s.kind] : null; };
 interface Label { el: HTMLDivElement; bubble: HTMLDivElement; name: HTMLDivElement; stats: HTMLDivElement; timer?: number }
 const labels: Label[] = KINDS.map(() => {
   const el = document.createElement('div'); el.className = 'label'; el.style.display = 'none';
@@ -109,7 +114,8 @@ function updateStats(): void {
 }
 
 function updateFan(i: number): void {
-  const f = chars[i].fan;
+  const c = charAt(i); if (!c) return;
+  const f = c.fan;
   while (f.children.length) f.remove(f.children[0]);
   const s = V.seats[i];
   const n = s && s.alive ? s.count : 0;
@@ -197,18 +203,20 @@ function setTableSize(n: TableSize): void {
   GUN_REST_POS.set(0.7 * sc, tableY + 0.075, 0.32 * sc);
   spot.angle = { 4: 0.82, 6: 0.9, 8: 1.0 }[n];
   spot.position.y = bulb.position.y = n === 8 ? 2.7 : 2.5;
-  chars.forEach((c, i) => { if (i >= n) c.root.visible = false; });
   layout();
 }
 
 function resetVisuals(): void {
   clearPile();
-  chars.forEach((c, i) => {
+  for (const c of Object.values(models)) {
     c.upper.rotation.set(0, 0, 0); c.head.rotation.set(0, 0, 0); c.yaw = 0; c.pitch = 0;
     c.glow.forEach(m => { m.emissiveIntensity = m.userData.e; });
     c.lids.forEach(l => (l.userData.eye ? l.scale.set(1, 1, 1) : l.scale.set(1, 1, 0.01)));
-    const s = i < V.size ? V.seats[i] : null;
-    c.root.visible = !!s && i !== V.mySeat;
+    c.root.visible = false;
+  }
+  V.seats.forEach((_, i) => {
+    const c = charAt(i); if (!c) return;
+    c.root.visible = i !== V.mySeat;
     c.root.position.copy(seatPos(vIdx(i))); c.root.lookAt(0, 0, 0);
   });
   gun.g.position.copy(GUN_REST_POS); gun.g.quaternion.copy(GUN_REST_Q);
@@ -216,7 +224,7 @@ function resetVisuals(): void {
 }
 
 function killChar(i: number): void {
-  const c = chars[i];
+  const c = charAt(i); if (!c) return;
   c.glow.forEach(m => { m.emissiveIntensity = 0; });
   c.lids.forEach(l => (l.userData.eye ? l.scale.set(1, 0.15, 1) : l.scale.set(1, 1, 1)));
   const r0 = c.upper.rotation.x;
@@ -281,6 +289,8 @@ async function applyEvent(ev: ViewEvent): Promise<void> {
       await sleep(1500);
       break;
 
+    case 'seat': V.mySeat = ev.seat; break;
+
     case 'hand':
       V.myHand = ev.cards; sel.clear(); renderHand(ev.deal); updateStats();
       break;
@@ -323,9 +333,10 @@ async function applyEvent(ev: ViewEvent): Promise<void> {
       V.turn = null; updateButtons(); SFX.liar();
       bubble(ev.seat, 'KŁAMCA!', true);
       setMsg(ev.seat === V.mySeat ? 'Krzyczysz <b>KŁAMCA!</b>' : `${esc(seatName(ev.seat))}: <b>„KŁAMCA!”</b>`);
-      if (ev.seat !== V.mySeat) {
-        const c = chars[ev.seat], r0 = c.upper.rotation.x;
-        void anim(0.15, k => { c.upper.rotation.x = r0 + 0.25 * Math.sin(k * Math.PI); });
+      const lc = ev.seat !== V.mySeat ? charAt(ev.seat) : null;
+      if (lc) {
+        const r0 = lc.upper.rotation.x;
+        void anim(0.15, k => { lc.upper.rotation.x = r0 + 0.25 * Math.sin(k * Math.PI); });
       }
       shake = 0.02; await sleep(900);
       break;
@@ -370,7 +381,7 @@ async function applyEvent(ev: ViewEvent): Promise<void> {
 
 // ---------- rosyjska ruletka ----------
 function sideOfHead(i: number): { head: THREE.Vector3; pos: THREE.Vector3 } {
-  const c = chars[i];
+  const c = charAt(i)!;
   const h = c.head.getWorldPosition(new THREE.Vector3()); h.y += 0.18;
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.root.quaternion);
   const a = h.clone().addScaledVector(right, 0.5), b = h.clone().addScaledVector(right, -0.5);
@@ -484,14 +495,15 @@ function frame(now: number): void {
   } else timerEl.textContent = '';
 
   // postacie: oddech, wzrok, podpisy nad głowami
-  chars.forEach((c, i) => {
-    const s = V.seats[i], L = labels[i];
-    if (!c.root.visible || !s) { L.el.style.display = 'none'; return; }
+  labels.forEach((L, i) => {
+    const s = V.seats[i], c = charAt(i);
+    if (!s || !c || !c.root.visible) { L.el.style.display = 'none'; return; }
     if (s.alive) {
       c.upper.position.y = 0.55 + Math.sin(t * 1.6 + i * 2) * 0.006;
       if (gun.g.position.distanceTo(GUN_REST_POS) > 0.05) tmp2.copy(gun.g.position);
       else if (V.active >= 0 && V.active !== i) {
-        if (V.active === V.mySeat) tmp2.copy(camera.position); else chars[V.active].head.getWorldPosition(tmp2);
+        const ac = charAt(V.active);
+        if (V.active === V.mySeat || !ac) tmp2.copy(camera.position); else ac.head.getWorldPosition(tmp2);
       } else if (V.active === i) tmp2.set(0, PILE_Y - 0.2, 0);
       else tmp2.set(0, 1.2, 0);
       const local = c.root.worldToLocal(tmp2.clone()).sub(new THREE.Vector3(0, 1.45, 0));

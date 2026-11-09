@@ -102,3 +102,12 @@
   .seg button{background:transparent;color:#f3e6cf;border:0;padding:8px 14px;font:600 14px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;cursor:pointer}
   .seg button.on{background:#e8c27a;color:#2a1a0a}
   .small{font-size:12px;opacity:.6;line-height:1.4}
+
+/* Wybór postaci */
+.kinds-title{opacity:.75;margin:4px 0 6px}
+.kinds{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-width:340px;margin:0 auto 12px}
+.kinds button{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:5px 2px 4px;color:#f3e6cf;font:600 11px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;transition:background .15s,border-color .15s}
+.kinds button .e{font-size:22px;line-height:1.1}
+.kinds button.on{border-color:#ffc95e;background:rgba(232,194,122,.22)}
+.kinds button:disabled{opacity:.28;cursor:default}
+.kinds button.taken{position:relative}

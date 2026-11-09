@@ -7,15 +7,21 @@ import './styles.css';
 import { ClientSession } from './net/client';
 import { HostSession } from './net/host';
 import { normalizeCode, type LobbyInfo } from './net/protocol';
+import type { Kind } from './core/types';
 import { $, showScreen, status } from './ui/dom';
-import { initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
+import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
 import { initAudio, toggleMute } from './view/audio';
 import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
 
 let host: HostSession | null = null;
 let client: ClientSession | null = null;
 
-const lobbyCtx = () => ({ isHost: !!host, mySeat: V.mySeat, kick: (i: number) => host?.kick(i) });
+const lobbyCtx = () => ({
+  isHost: !!host,
+  mySeat: V.mySeat,
+  kick: (i: number) => host?.kick(i),
+  pick: (k: Kind) => (host ? host.pick(host.localSeat, k) : client?.pick(k)),
+});
 const showLobby = (info: LobbyInfo) => renderLobby(info, lobbyCtx());
 
 bindView({
@@ -29,13 +35,15 @@ initSegments({
 });
 initShareButton(() => host?.code ?? client?.code ?? '');
 initRules();
+initMenuKindPicker();
+$<HTMLInputElement>('#shuffleSeats').addEventListener('change', e => host?.setShuffle((e.target as HTMLInputElement).checked));
 prefillCodeFromHash();
 
 // ---------- menu ----------
 $('#soloBtn').addEventListener('click', () => {
   initAudio();
   setMySeat(0);
-  host = HostSession.solo(settings.nick(), settings.size, settings.mode, { opened() {}, lobby() {}, status });
+  host = HostSession.solo(settings.nick(), settings.kind, settings.size, settings.mode, { opened() {}, lobby() {}, status });
 });
 
 $('#createBtn').addEventListener('click', () => {
@@ -47,7 +55,7 @@ $('#createBtn').addEventListener('click', () => {
     lobby: showLobby,
     status: t => status(t),
   });
-  host.open(settings.nick());
+  host.open(settings.nick(), settings.kind);
 });
 
 function join(): void {
@@ -63,7 +71,7 @@ function join(): void {
     lost: () => { endTurnUI(); showHostLost(); },
     status: t => status(t),
   });
-  client.join(code, settings.nick());
+  client.join(code, settings.nick(), settings.kind);
 }
 $('#joinBtn').addEventListener('click', join);
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
@@ -77,7 +85,7 @@ $('#startBtn').addEventListener('click', () => {
 $('#againBtn').addEventListener('click', () => {
   if (!host) return;
   if (host.online) { showScreen('#lobbyScreen'); host.broadcastLobby(); paintSegments(host.size, host.mode); }
-  else host = HostSession.solo(settings.nick(), settings.size, settings.mode, { opened() {}, lobby() {}, status });
+  else host = HostSession.solo(settings.nick(), settings.kind, settings.size, settings.mode, { opened() {}, lobby() {}, status });
 });
 const backToMenu = () => { location.href = location.pathname; };
 $('#menuBtn').addEventListener('click', backToMenu);

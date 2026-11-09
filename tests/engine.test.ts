@@ -33,7 +33,7 @@ function fakeIO(rng: Rng, humanPolicy?: (seat: number, req: TurnRequest, hand: C
 function setup(size: TableSize, mode: Mode, seed: number, humans = 1, policy?: Parameters<typeof fakeIO>[1]) {
   const rng = seededRng(seed);
   const f = fakeIO(rng, policy);
-  const seats: PlayerSlot[] = Array.from({ length: size }, (_, i) => (i < humans ? newSlot(`Gracz${i}`, KINDS[i], false) : botSlot(i)));
+  const seats: PlayerSlot[] = Array.from({ length: size }, (_, i) => (i < humans ? newSlot(`Gracz${i}`, KINDS[i], false) : botSlot(KINDS[i])));
   const engine = new GameEngine(seats, f.io, { size, mode, rng });
   f.attach(engine);
   return { engine, ...f };
@@ -136,7 +136,7 @@ describe('ochrona przed oszustwem i błędami', () => {
 
   it('zła liczba miejsc to błąd', () => {
     const { io } = fakeIO(seededRng(1));
-    expect(() => new GameEngine([botSlot(0), botSlot(1)], io, { size: 4, mode: 'classic', rng: seededRng(1) })).toThrow();
+    expect(() => new GameEngine([botSlot('frog'), botSlot('robot')], io, { size: 4, mode: 'classic', rng: seededRng(1) })).toThrow();
   });
 });
 

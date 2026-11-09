@@ -1,5 +1,5 @@
 import { chooseBotPlay, shouldBotChallenge } from './bots';
-import { BOT_NAMES, CHAMBERS, KINDS, RANKS, TRAITS, TURN_MS } from './constants';
+import { BOT_NAMES, CHAMBERS, RANKS, TRAITS, TURN_MS } from './constants';
 import { deal, truthfulTotal } from './deck';
 import { randInt, type Rng } from './rng';
 import { isValidPlay, pullTrigger, resolveChallenge, takeCards, turnStatus } from './rules';
@@ -48,10 +48,8 @@ export interface EndResult {
 export const newSlot = (name: string, kind: Kind, isBot: boolean, fill = false): PlayerSlot =>
   ({ name, kind, isBot, fill, alive: true, shots: 0, bullet: 0, hand: [] });
 
-export const botSlot = (seat: number): PlayerSlot => {
-  const kind = KINDS[seat];
-  return newSlot(BOT_NAMES[kind], kind, true, true);
-};
+/** Bot dosadzony na wolne miejsce; imię wynika z postaci. */
+export const botSlot = (kind: Kind): PlayerSlot => newSlot(BOT_NAMES[kind], kind, true, true);
 
 /**
  * Silnik partii: tasuje, pilnuje kolejki, rozstrzyga „KŁAMCA!”, strzela, steruje botami.
