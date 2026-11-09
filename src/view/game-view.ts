@@ -460,7 +460,9 @@ window.addEventListener('pointercancel', () => { drag = null; });
 window.addEventListener('resize', layout);
 
 // ---------- pętla renderowania ----------
-const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
+const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), camFwd = new THREE.Vector3(), toHead = new THREE.Vector3();
+/** Postać, na którą patrzysz (w stożku ~8° od środka ekranu), odwzajemnia spojrzenie. */
+const EYE_CONTACT_COS = Math.cos(8 * Math.PI / 180);
 const clock = new THREE.Clock();
 const timerEl = $('#timer');
 
@@ -495,21 +497,27 @@ function frame(now: number): void {
   } else timerEl.textContent = '';
 
   // postacie: oddech, wzrok, podpisy nad głowami
+  camera.getWorldDirection(camFwd);
   labels.forEach((L, i) => {
     const s = V.seats[i], c = charAt(i);
     if (!s || !c || !c.root.visible) { L.el.style.display = 'none'; return; }
     if (s.alive) {
       c.upper.position.y = 0.55 + Math.sin(t * 1.6 + i * 2) * 0.006;
+      // gdzie patrzy: rewolwer w ruchu > ty (gdy na nią patrzysz) > aktywny gracz > ty
+      c.head.getWorldPosition(toHead).sub(camera.position).normalize();
+      const eyeContact = toHead.dot(camFwd) > EYE_CONTACT_COS;
       if (gun.g.position.distanceTo(GUN_REST_POS) > 0.05) tmp2.copy(gun.g.position);
+      else if (eyeContact) tmp2.copy(camera.position);
       else if (V.active >= 0 && V.active !== i) {
         const ac = charAt(V.active);
         if (V.active === V.mySeat || !ac) tmp2.copy(camera.position); else ac.head.getWorldPosition(tmp2);
       } else if (V.active === i) tmp2.set(0, PILE_Y - 0.2, 0);
-      else tmp2.set(0, 1.2, 0);
+      else tmp2.copy(camera.position);
       const local = c.root.worldToLocal(tmp2.clone()).sub(new THREE.Vector3(0, 1.45, 0));
       const ty = Math.max(-1.2, Math.min(1.2, Math.atan2(local.x, local.z)));
       const tp = Math.max(-0.5, Math.min(0.5, -Math.atan2(local.y, Math.hypot(local.x, local.z))));
-      c.yaw += (ty - c.yaw) * 0.06; c.pitch += (tp - c.pitch) * 0.06;
+      const speed = eyeContact ? 0.1 : 0.06;
+      c.yaw += (ty - c.yaw) * speed; c.pitch += (tp - c.pitch) * speed;
       c.head.rotation.y = c.yaw; c.head.rotation.x = c.pitch;
       c.fan.rotation.z = Math.sin(t * 1.3 + i) * 0.03;
     }
