@@ -34,6 +34,8 @@
   .card .big{font-family:Sancreek,Georgia,serif;font-size:36px;line-height:1}
   .card .corner{position:absolute;top:6px;left:8px;font-family:Sancreek,Georgia,serif;font-size:13px}
   .card .small{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:9px;font-weight:800;letter-spacing:1px}
+  .card[data-t=D]{color:#7a0d0d;background:#f3d2c8}.card[data-t=M]{color:#2a5a7a;background:#dde9f0}.card[data-t=X]{color:#9a6208;background:#f6e3b0}
+  .card .big.emo{font-size:30px}
   .card[data-t=K]{color:#8e1c1c}.card[data-t=Q]{color:#1d3d8f}.card[data-t=A]{color:#151515}.card[data-t=J]{color:#6a1f8a}
   .card.match{box-shadow:0 4px 10px rgba(0,0,0,.6),inset 0 0 0 3px #efe3c8,inset 0 0 0 5px #d9a536}
   .card.sel{transform:translateY(-16px);box-shadow:0 0 0 3px #ffc95e,0 10px 22px rgba(0,0,0,.7),inset 0 0 0 3px #efe3c8,inset 0 0 0 5px #8a6a3a}

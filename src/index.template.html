@@ -80,6 +80,9 @@
     <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Graczy przy stole:</span>
       <div class="seg" id="sizeSeg"><button data-n="4">4</button><button data-n="6">6</button><button data-n="8">8</button></div>
     </div>
+    <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Tryb:</span>
+      <div class="seg modeseg" id="modeSeg"><button data-m="classic">Klasyczny</button><button data-m="special">Specjalne karty</button></div>
+    </div>
     <div class="row">
       <button class="act btn-gold" id="createBtn">Załóż pokój</button>
       <button class="act btn-dark" id="soloBtn">Graj z botami</button>
@@ -104,6 +107,7 @@
     <div id="seatList"></div>
     <div id="hostControls">
       <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Graczy przy stole:</span><div class="seg" id="sizeSegLobby"><button data-n="4">4</button><button data-n="6">6</button><button data-n="8">8</button></div></div>
+      <div class="row" style="align-items:center"><span class="small" style="opacity:.8">Tryb:</span><div class="seg modeseg" id="modeSegLobby"><button data-m="classic">Klasyczny</button><button data-m="special">Specjalne karty</button></div></div>
       <label class="chk"><input type="checkbox" id="fillBots" checked> Wolne miejsca zajmą boty</label>
       <button class="act btn-gold" id="startBtn">Start</button>
     </div>
@@ -133,6 +137,7 @@
       <li>Każda runda ma <b>kartę stołu</b>. W swojej turze kładziesz zakryte 1–3 karty i twierdzisz, że to karty stołu. Joker zawsze pasuje.</li>
       <li>Następny gracz gra dalej albo krzyczy <b>KŁAMCA!</b> Wtedy odkrywamy ostatnie zagrane karty.</li>
       <li>Kto się pomylił, kłamca czy oskarżyciel, pociąga za spust swojego rewolweru. Jeden nabój, sześć komór, a z każdym strzałem szansa rośnie.</li>
+      <li><b>Tryb „Specjalne karty”</b>: do talii dochodzą 3 karty. <b>😈 Diabeł</b> liczy się jak prawdziwa karta, a gdy zostanie odkryty, strzelają wszyscy oprócz tego, kto go zagrał. <b>🪞 Lustro</b> też liczy się jak prawdziwa karta, a po odkryciu kara odbija się na oskarżyciela. <b>💥 Podwójny strzał</b> jest zawsze kłamstwem, a po odkryciu przegrany strzela dwa razy.</li>
       <li>Na ruch masz 60 sekund (przy 6 osobach: 45, przy 8: 40). Wygrywa ostatni żywy przy stole.</li>
     </ul>
     <button class="act btn-gold" id="rulesClose">Jasne</button>

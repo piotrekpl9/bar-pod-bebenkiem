@@ -11,5 +11,6 @@ const NAMES = { K: ['król', 'króle', 'króle'], Q: ['dama', 'damy', 'damy'], A
 const NUMS = { K: ['Jeden', 'Dwa', 'Trzy'], Q: ['Jedna', 'Dwie', 'Trzy'], A: ['Jeden', 'Dwa', 'Trzy'] };
 const FULL = { K: 'KRÓLE', Q: 'DAMY', A: 'ASY' };
 const claimText = (t, n) => `${NUMS[t][n - 1]} ${NAMES[t][n - 1]}.`;
-const cardLabel = c => c === 'J' ? 'Joker' : c;
+const SPECIAL_NAMES = { J: 'Joker', D: 'Diabeł', M: 'Lustro', X: 'Podwójny strzał' };
+const cardLabel = c => SPECIAL_NAMES[c] || c;
 

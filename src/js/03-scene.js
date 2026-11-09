@@ -56,13 +56,38 @@ const wallTex = canvasTex(256, 256, (g, w, h) => {
 });
 wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(8, 2);
 
-const CARD_COL = { K: '#8e1c1c', Q: '#1d3d8f', A: '#151515', J: '#6a1f8a' };
+const CARD_COL = { K: '#8e1c1c', Q: '#1d3d8f', A: '#151515', J: '#6a1f8a', D: '#7a0d0d', M: '#2a5a7a', X: '#9a6208' };
 function faceTex(type) {
   return canvasTex(256, 360, (g, w, h) => {
     g.fillStyle = '#efe3c8'; rr(g, 0, 0, w, h, 24); g.fill();
     g.strokeStyle = '#8a6a3a'; g.lineWidth = 7; rr(g, 14, 14, w - 28, h - 28, 16); g.stroke();
     g.fillStyle = CARD_COL[type]; g.textAlign = 'center'; g.textBaseline = 'middle';
-    if (type === 'J') { star(g, w / 2, h / 2 - 20, 82, 34); g.fill(); g.font = 'bold 40px Georgia'; g.fillText('JOKER', w / 2, h - 68); }
+    if (type === 'D') { // Diabeł
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#3a0606'); gr.addColorStop(1, '#8a1010');
+      g.fillStyle = gr; rr(g, 20, 20, w - 40, h - 40, 12); g.fill();
+      g.fillStyle = '#ff5030'; const cx = w / 2, cy = h / 2 - 22;
+      g.beginPath(); g.moveTo(cx - 60, cy - 20); g.lineTo(cx - 80, cy - 95); g.lineTo(cx - 25, cy - 50); g.fill();
+      g.beginPath(); g.moveTo(cx + 60, cy - 20); g.lineTo(cx + 80, cy - 95); g.lineTo(cx + 25, cy - 50); g.fill();
+      g.beginPath(); g.arc(cx, cy, 62, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#ffe070'; g.beginPath(); g.moveTo(cx - 40, cy - 12); g.lineTo(cx - 12, cy - 2); g.lineTo(cx - 36, cy + 6); g.fill();
+      g.beginPath(); g.moveTo(cx + 40, cy - 12); g.lineTo(cx + 12, cy - 2); g.lineTo(cx + 36, cy + 6); g.fill();
+      g.strokeStyle = '#3a0606'; g.lineWidth = 6; g.beginPath(); g.arc(cx, cy + 14, 30, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+      g.fillStyle = '#ffd0b0'; g.font = 'bold 40px Georgia'; g.fillText('DIABEŁ', w / 2, h - 66);
+    } else if (type === 'M') { // Lustro
+      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#dfe9ef'); gr.addColorStop(0.5, '#9fb6c4'); gr.addColorStop(1, '#e8f0f4');
+      g.fillStyle = gr; rr(g, 20, 20, w - 40, h - 40, 12); g.fill();
+      g.strokeStyle = '#2a5a7a'; g.lineWidth = 8; g.beginPath(); g.ellipse(w / 2, h / 2 - 22, 62, 88, 0, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 7;
+      g.beginPath(); g.moveTo(w / 2 - 28, h / 2 - 60); g.lineTo(w / 2 - 6, h / 2 - 84); g.stroke();
+      g.beginPath(); g.moveTo(w / 2 - 30, h / 2 - 30); g.lineTo(w / 2 + 14, h / 2 - 74); g.stroke();
+      g.fillStyle = '#2a5a7a'; g.font = 'bold 40px Georgia'; g.fillText('LUSTRO', w / 2, h - 66);
+    } else if (type === 'X') { // Podwójny strzał
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#f7e2a8'); gr.addColorStop(1, '#e0a840');
+      g.fillStyle = gr; rr(g, 20, 20, w - 40, h - 40, 12); g.fill();
+      g.fillStyle = '#5a2a00'; g.font = 'bold 120px Georgia'; g.fillText('×2', w / 2, h / 2 - 30);
+      for (const dx of [-30, 30]) { g.fillStyle = '#b07a20'; rr(g, w / 2 + dx - 12, h / 2 + 34, 24, 34, 4); g.fill(); g.fillStyle = '#7a4a10'; g.beginPath(); g.arc(w / 2 + dx, h / 2 + 34, 12, Math.PI, 0); g.fill(); }
+      g.fillStyle = '#5a2a00'; g.font = 'bold 30px Georgia'; g.fillText('PODWÓJNY', w / 2, h - 86); g.fillText('STRZAŁ', w / 2, h - 54);
+    } else if (type === 'J') { star(g, w / 2, h / 2 - 20, 82, 34); g.fill(); g.font = 'bold 40px Georgia'; g.fillText('JOKER', w / 2, h - 68); }
     else {
       g.font = 'bold 180px Georgia'; g.fillText(type, w / 2, h / 2 + 10);
       g.font = 'bold 44px Georgia'; g.fillText(type, 50, 56);

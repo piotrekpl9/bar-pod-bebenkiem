@@ -40,6 +40,16 @@ const HUMAN_CARD_ORIGIN = new V3(0, 1.05, 1.55);
 const V = { mySeat: 0, seats: [null, null, null, null], table: 'K', active: -1, turn: null, started: false, myHand: [], deadline: 0 };
 const vIdx = s => (s - V.mySeat + TABLE_N) % TABLE_N;
 // rozmiar stołu: 4 albo 6 miejsc
+const SPECIAL_DESC = {
+  D: 'Diabeł: liczy się jak prawdziwa karta. Odkryty = strzelają wszyscy oprócz tego, kto go zagrał.',
+  M: 'Lustro: liczy się jak prawdziwa karta. Odkryte = kara odbija się na oskarżyciela.',
+  X: 'Podwójny strzał: zawsze jest kłamstwem. Odkryty = przegrany strzela dwa razy.',
+  J: 'Joker: pasuje do każdej karty stołu.',
+};
+function deckDesc(n, mode) {
+  const D = DECKS[n] || DECKS[4], sp = mode === 'special';
+  return `Talia (${3 * D.per + D.jokers + (sp ? 3 : 0)}): ${D.per}×K · ${D.per}×Q · ${D.per}×A · ${D.jokers}×Joker` + (sp ? ' · Diabeł · Lustro · ×2' : '');
+}
 const DECKS = { 4: { per: 6, jokers: 2 }, 6: { per: 9, jokers: 3 }, 8: { per: 12, jokers: 4 } };
 function setTableSize(n) {
   TABLE_N = n === 8 ? 8 : n === 6 ? 6 : 4;
@@ -52,10 +62,10 @@ function setTableSize(n) {
   layout();
 }
 const seatName = s => s === V.mySeat ? 'Ty' : (V.seats[s] ? V.seats[s].name : '?');
-const isTrue = c => c === V.table || c === 'J';
+const isTrue = c => c === V.table || c === 'J' || c === 'D' || c === 'M';
 let sel = new Set(), lastMeshes = [], pileH = 0;
 const pileGroup = new THREE.Group(); scene.add(pileGroup);
-const faceMats = {}; ['K', 'Q', 'A', 'J'].forEach(t => faceMats[t] = new THREE.MeshStandardMaterial({ map: faceTex(t), roughness: 0.6 }));
+const faceMats = {}; ['K', 'Q', 'A', 'J', 'D', 'M', 'X'].forEach(t => faceMats[t] = new THREE.MeshStandardMaterial({ map: faceTex(t), roughness: 0.6 }));
 const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.6 });
 const edgeMat = mat(0xd8ccb0);
 const cardGeo = new THREE.BoxGeometry(0.3, 0.006, 0.42);
@@ -107,7 +117,9 @@ function renderHand(animate) {
     d.className = 'card' + (sel.has(i) ? ' sel' : '') + (isTrue(c) ? ' match' : '');
     d.dataset.t = c;
     if (!animate) d.style.animation = 'none'; else d.style.animationDelay = (i * 0.07) + 's';
-    d.innerHTML = c === 'J' ? '<span class="big">★</span><span class="small">JOKER</span>' : `<span class="corner">${c}</span><span class="big">${c}</span>`;
+    if (SPECIAL_DESC[c]) d.title = SPECIAL_DESC[c];
+    const SP = { J: ['★', 'JOKER'], D: ['😈', 'DIABEŁ'], M: ['🪞', 'LUSTRO'], X: ['×2', 'STRZAŁ'] }[c];
+    d.innerHTML = SP ? `<span class="big${c === 'J' || c === 'X' ? '' : ' emo'}">${SP[0]}</span><span class="small">${SP[1]}</span>` : `<span class="corner">${c}</span><span class="big">${c}</span>`;
     d.addEventListener('click', () => { initAudio(); if (sel.has(i)) sel.delete(i); else if (sel.size < 3) sel.add(i); SFX.tick(); renderHand(false); });
     h.appendChild(d);
   });
@@ -121,9 +133,8 @@ function updateButtons() {
 }
 function setTableCard(t) {
   const tc = $('#tablecard'); $('#miniCard').textContent = t; $('#miniCard').style.color = CARD_COL[t];
-  const D = DECKS[TABLE_N];
   $('#tableTxt').textContent = `Karta stołu: ${FULL[t]}`;
-  $('#deckTxt').textContent = `Talia (${3 * D.per + D.jokers}): ${D.per}×K · ${D.per}×Q · ${D.per}×A · ${D.jokers}×Joker`;
+  $('#deckTxt').textContent = deckDesc(TABLE_N, V.mode);
   tc.classList.add('show'); tc.classList.remove('pop'); void tc.offsetWidth; tc.classList.add('pop');
 }
 function flashScreen(color, peak, dur) {
@@ -167,12 +178,12 @@ function drained() { return new Promise(r => { const chk = () => (!processing &&
 async function applyEvent(ev) {
   switch (ev.t) {
     case 'begin': {
-      setTableSize(ev.st.length); V.seats = ev.st.slice(); V.started = true; V.active = -1; V.turn = null; V.myHand = []; sel.clear();
+      V.mode = ev.mode || 'classic'; setTableSize(ev.st.length); V.seats = ev.st.slice(); V.started = true; V.active = -1; V.turn = null; V.myHand = []; sel.clear();
       resetVisuals(); hideScreens(); renderHand(false); applySt(ev.st);
       setMsg('Siadamy do stołu…'); await sleep(600); break;
     }
     case 'sync': {
-      setTableSize(ev.st.length); V.seats = ev.st.slice(); V.started = true; V.table = ev.table; V.active = ev.active; V.turn = null; V.myHand = []; sel.clear();
+      V.mode = ev.mode || 'classic'; setTableSize(ev.st.length); V.seats = ev.st.slice(); V.started = true; V.table = ev.table; V.active = ev.active; V.turn = null; V.myHand = []; sel.clear();
       resetVisuals(); hideScreens(); renderHand(false); applySt(ev.st);
       ev.st.forEach((q, i) => { if (q && !q.alive && i !== V.mySeat) killChar(i); });
       if (ev.round) setTableCard(ev.table);
@@ -235,11 +246,19 @@ async function applyEvent(ev) {
         const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI, 0, 0));
         return sleep(k * 120).then(() => moveObj(m, target, q, 0.6, 0.3));
       }));
-      const shown = ev.cards.map(c => c === 'J' ? 'Joker' : c).join(', ');
+      const shown = ev.cards.map(cardLabel).join(', ');
       const me = ev.target === V.mySeat, nm = esc(seatName(ev.target));
-      const verdict = ev.truthful ? (me ? 'Prawda! Twoje karty były czyste.' : `Prawda! ${nm} nie kłamie.`) : (me ? 'Kłamstwo! Twój blef nie przeszedł.' : `Kłamstwo! ${nm} blefuje.`);
+      let verdict = ev.truthful ? (me ? 'Prawda! Twoje karty były czyste.' : `Prawda! ${nm} nie kłamie.`) : (me ? 'Kłamstwo! Twój blef nie przeszedł.' : `Kłamstwo! ${nm} blefuje.`);
+      if (ev.effect === 'devil') {
+        verdict = me ? '😈 <b>Diabeł!</b> Strzelają wszyscy oprócz ciebie.' : `😈 <b>Diabeł!</b> Strzelają wszyscy oprócz: ${nm}.`;
+        flashScreen('#a00000', 0.45, 1.2); shake = 0.05; SFX.liar();
+      } else if (ev.effect === 'mirror') {
+        verdict = ev.challenger === V.mySeat ? '🪞 <b>Lustro!</b> Kara odbija się na ciebie.' : `🪞 <b>Lustro!</b> Kara odbija się na: ${esc(seatName(ev.challenger))}.`;
+        flashScreen('#cfe8ff', 0.4, 0.8);
+      }
+      if (ev.double) verdict += ' 💥 <b>Podwójny strzał!</b>';
       setMsg(`Odkryte: <b>${shown}</b> → ${verdict}`);
-      await sleep(2000); break;
+      await sleep(ev.effect || ev.double ? 2800 : 2000); break;
     }
     case 'shot': await rouletteAnim(ev); applySt(ev.st); break;
     case 'end': V.active = -1; V.turn = null; applySt(ev.st); updateButtons(); showEnd(ev); break;
@@ -255,7 +274,8 @@ function sideOfHead(i) {
 }
 async function rouletteAnim(ev) {
   const i = ev.seat, me = i === V.mySeat, s = V.seats[i];
-  setMsg(me ? `Pociągasz za spust… <b>(szansa 1/${ev.den})</b>` : `${esc(seatName(i))} pociąga za spust… <b>(szansa 1/${ev.den})</b>`);
+  const again = ev.second ? ' Drugi raz!' : '';
+  setMsg((me ? `Pociągasz za spust… <b>(szansa 1/${ev.den})</b>` : `${esc(seatName(i))} pociąga za spust… <b>(szansa 1/${ev.den})</b>`) + again);
   let pos, look;
   if (me) { pos = camera.localToWorld(new V3(0.26, -0.13, -0.5)); look = camera.position.clone().add(new V3(-0.05, 0.02, 0)); }
   else { const sd = sideOfHead(i); pos = sd.pos; look = sd.head; }
@@ -298,8 +318,8 @@ $('#liarBtn').addEventListener('click', () => { const t = V.turn; if (!t || !t.c
 
 // ================= LOGIKA HOSTA (decyduje o wszystkim) =================
 const turnMs = () => ({ 4: 60000, 6: 45000, 8: 40000 })[H.N] || 60000;
-const H = { N: 4, seats: [null, null, null, null], table: 'K', plays: [], lastPlay: null, round: 0, running: false, pending: null, token: 0 };
-const hTrue = c => c === H.table || c === 'J';
+const H = { N: 4, mode: 'classic', seats: [null, null, null, null], table: 'K', plays: [], lastPlay: null, round: 0, running: false, pending: null, token: 0 };
+const hTrue = c => c === H.table || c === 'J' || c === 'D' || c === 'M';
 function pub() { return H.seats.map(s => s ? { name: s.name, kind: s.kind, isBot: s.isBot, alive: s.alive, shots: s.shots, count: s.hand.length } : null); }
 function safeSend(conn, ev) { try { if (conn && conn.open) conn.send(ev); } catch (e) { console.warn(e); } }
 function emit(ev) { handleEvent(ev); H.seats.forEach(s => { if (s && s.conn) safeSend(s.conn, ev); }); }
@@ -327,7 +347,7 @@ function botShouldChallenge(i) {
   const s = H.seats[i], lp = H.lastPlay, n = lp.cards.length, tr = TRAITS[s.kind];
   const ownT = s.hand.filter(hTrue).length + H.plays.filter(p => p.seat === i).reduce((a, p) => a + p.cards.filter(hTrue).length, 0);
   const claims = H.plays.filter(p => p.seat !== i).reduce((a, p) => a + p.cards.length, 0);
-  const total = DECKS[H.N].per + DECKS[H.N].jokers;
+  const total = DECKS[H.N].per + DECKS[H.N].jokers + (H.mode === 'special' ? 2 : 0);
   if (ownT + claims > total) return true;
   let pr = 0.07 + 0.12 * (n - 1) + 0.5 * Math.pow((ownT + claims) / total, 2);
   if (H.seats[lp.seat].hand.length === 0) pr += 0.12;
@@ -371,7 +391,7 @@ function seatToBot(i, why) {
   }
 }
 function deal() {
-  const D = DECKS[H.N], deck = []; TYPES.forEach(t => { for (let k = 0; k < D.per; k++) deck.push(t); }); for (let k = 0; k < D.jokers; k++) deck.push('J'); shuffle(deck);
+  const D = DECKS[H.N], deck = []; TYPES.forEach(t => { for (let k = 0; k < D.per; k++) deck.push(t); }); for (let k = 0; k < D.jokers; k++) deck.push('J'); if (H.mode === 'special') deck.push('D', 'M', 'X'); shuffle(deck);
   H.seats.forEach(s => { if (s) s.hand = s.alive ? deck.splice(0, 5) : []; });
 }
 const nextSeat = i => (i + 1) % H.N;
@@ -396,14 +416,25 @@ async function hostRound(starter, tok) {
     if (tok !== H.token) return null;
     if (a.type === 'liar') {
       emit({ t: 'liar', seat: cur, target: lp.seat });
-      const truthful = lp.cards.every(hTrue);
-      const loser = truthful ? cur : lp.seat;
-      emit({ t: 'reveal', cards: lp.cards, truthful, target: lp.seat, loser });
-      const L = H.seats[loser]; const den = 6 - L.shots; const dead = L.shots === L.bullet; L.shots++;
-      if (dead) L.alive = false;
-      emit({ t: 'shot', seat: loser, dead, den, st: pub() });
+      const cards = lp.cards, truthful = cards.every(hTrue);
+      const devil = cards.includes('D'), mirror = cards.includes('M'), dbl = cards.includes('X');
+      let shooters, effect = null;
+      if (devil) { // wszyscy oprócz zagrywającego, po kolei od następnego
+        effect = 'devil'; shooters = [];
+        for (let k = 1; k < H.N; k++) { const j = (lp.seat + k) % H.N; if (H.seats[j] && H.seats[j].alive) shooters.push(j); }
+      } else if (mirror) { effect = 'mirror'; shooters = [cur]; }
+      else shooters = [truthful ? cur : lp.seat];
+      emit({ t: 'reveal', cards, truthful, target: lp.seat, challenger: cur, effect, double: dbl, shooters });
+      for (const j of shooters) {
+        for (let k = 0; k < (dbl ? 2 : 1); k++) {
+          const L = H.seats[j]; if (!L.alive) break;
+          const den = 6 - L.shots, dead = L.shots === L.bullet; L.shots++;
+          if (dead) L.alive = false;
+          emit({ t: 'shot', seat: j, dead, den, second: k === 1, st: pub() });
+        }
+      }
       await drained();
-      return loser;
+      return devil ? lp.seat : shooters[0];
     }
     const cards = a.cards.slice().sort((x, y) => y - x).map(k => s.hand.splice(k, 1)[0]).reverse();
     H.lastPlay = { seat: cur, cards }; H.plays.push(H.lastPlay); H.pileN += cards.length;
@@ -417,7 +448,7 @@ async function hostRound(starter, tok) {
 async function hostGame() {
   const tok = ++H.token; H.running = true; H.round = 0;
   H.seats.forEach(s => { if (s) { s.alive = true; s.shots = 0; s.bullet = (rnd() * 6) | 0; s.hand = []; } });
-  emit({ t: 'begin', st: pub() });
+  emit({ t: 'begin', st: pub(), mode: H.mode });
   await drained();
   let starter = H.seats.findIndex(s => s);
   while (tok === H.token) {
@@ -467,7 +498,7 @@ function createRoom() {
   const peer = new Peer(ROOM_PREFIX + code.toLowerCase(), peerOpts());
   NET.peer = peer; NET.isHost = true; NET.online = true; NET.code = code;
   peer.on('open', () => {
-    H.N = chosenN; H.seats = Array.from({ length: H.N }, (_, i) => i === 0 ? { name, kind: KINDS[0], isBot: false, local: true, conn: null, hand: [], alive: true, shots: 0, bullet: 0 } : null);
+    H.N = chosenN; H.mode = chosenMode; H.seats = Array.from({ length: H.N }, (_, i) => i === 0 ? { name, kind: KINDS[0], isBot: false, local: true, conn: null, hand: [], alive: true, shots: 0, bullet: 0 } : null);
     V.mySeat = 0; location.hash = code;
     showScreen('#lobbyScreen'); lobbyBroadcast();
   });
@@ -502,7 +533,7 @@ function hostOnData(conn, d) {
       q.conn = conn; q.local = false; q.isBot = false; q.fill = false; conn.seat = back;
       safeSend(conn, { t: 'welcome', seat: back, code: NET.code, token: tok });
       if (H.running) {
-        safeSend(conn, { t: 'sync', st: pub(), table: H.table, round: H.round, pileN: H.pileN || 0, lastN: H.lastPlay ? H.lastPlay.cards.length : 0, active: H.active });
+        safeSend(conn, { t: 'sync', mode: H.mode, st: pub(), table: H.table, round: H.round, pileN: H.pileN || 0, lastN: H.lastPlay ? H.lastPlay.cards.length : 0, active: H.active });
         sendHand(back, false);
         const p = H.pending;
         if (p && p.seat === back) safeSend(conn, { t: 'turn', seat: back, canChallenge: p.canChallenge, forced: p.forced, ms: Math.max(1000, p.deadline - Date.now()), lastSeat: H.lastPlay ? H.lastPlay.seat : -1, lastN: H.lastPlay ? H.lastPlay.cards.length : 0 });
@@ -545,7 +576,7 @@ function hostOnClose(conn) {
   if (H.running) seatToBot(i, 'rozłączył się');
   else { H.seats[i] = null; lobbyBroadcast(); }
 }
-function lobbyInfo() { return { t: 'lobby', n: H.N, code: NET.code, running: H.running, seats: H.seats.map(s => s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot } : null) }; }
+function lobbyInfo() { return { t: 'lobby', mode: H.mode, n: H.N, code: NET.code, running: H.running, seats: H.seats.map(s => s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot } : null) }; }
 function lobbyBroadcast() {
   const info = lobbyInfo();
   renderLobby(info);
@@ -564,7 +595,7 @@ function startSolo() {
   initAudio();
   NET.isHost = true; NET.online = false; V.mySeat = 0;
   const name = myName();
-  H.N = chosenN;
+  H.N = chosenN; H.mode = chosenMode;
   H.seats = KINDS.slice(0, H.N).map((k, i) => i === 0 ? { name, kind: k, isBot: false, local: true, conn: null, hand: [] } : { name: BOT_NAMES[k], kind: k, isBot: true, fill: true, conn: null, hand: [] });
   hostGame();
 }
@@ -647,8 +678,8 @@ function renderLobby(info) {
     list.appendChild(li);
   });
   $('#hostControls').classList.toggle('hide', !NET.isHost);
-  { const D = DECKS[info.seats.length] || DECKS[4]; $('#tableInfo').textContent = `Stół na ${info.seats.length} ${info.seats.length === 4 ? 'osoby' : 'osób'} · talia: ${3 * D.per + D.jokers} kart (${D.per}×K, ${D.per}×Q, ${D.per}×A, ${D.jokers}×Joker)`; }
-  paintSeg();
+  { const n = info.seats.length; $('#tableInfo').innerHTML = `Stół na ${n} ${n === 4 ? 'osoby' : 'osób'} · tryb: <b>${info.mode === 'special' ? 'specjalne karty' : 'klasyczny'}</b><br>${deckDesc(n, info.mode)}`; }
+  paintSeg(); paintMode();
   $('#clientWait').classList.toggle('hide', NET.isHost);
 }
 const IS_WEB = /^https?:$/.test(location.protocol);
@@ -709,7 +740,17 @@ function hostSetSize(n) {
   H.N = n; chosenN = n; try { localStorage.setItem('bpb-n', n); } catch (e) {}
   status('', '#lobbyStatus'); paintSeg(); lobbyBroadcast();
 }
-paintSeg();
+// --- wybór trybu ---
+let chosenMode = 'classic';
+try { chosenMode = localStorage.getItem('bpb-mode') === 'special' ? 'special' : 'classic'; } catch (e) {}
+function paintMode() { const m = NET.isHost && NET.online ? H.mode : chosenMode; document.querySelectorAll('.modeseg button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); }
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => { chosenMode = b.dataset.m; try { localStorage.setItem('bpb-mode', chosenMode); } catch (e) {} paintMode(); }));
+document.querySelectorAll('#modeSegLobby button').forEach(b => b.addEventListener('click', () => {
+  if (!NET.isHost || H.running) return;
+  H.mode = chosenMode = b.dataset.m; try { localStorage.setItem('bpb-mode', chosenMode); } catch (e) {}
+  paintMode(); lobbyBroadcast();
+}));
+paintSeg(); paintMode();
 
 // --- przyciski menu ---
 $('#createBtn').addEventListener('click', createRoom);
