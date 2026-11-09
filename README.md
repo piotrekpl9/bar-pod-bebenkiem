@@ -34,7 +34,7 @@ npm run build        # tworzy dist/index.html (jeden plik, ~0,8 MB)
 
 ## Publikacja na GitHub Pages
 
-W repozytorium wejdź w **Settings → Pages → Build and deployment → Source** i wybierz **GitHub Actions**. Każdy push na `main` sam zbuduje grę i ją opublikuje (workflow `.github/workflows/pages.yml`).
+W repozytorium wejdź w **Settings → Pages → Build and deployment → Source** i wybierz **GitHub Actions**. Każdy push na `main` lub `master` sam zbuduje grę i ją opublikuje (workflow `.github/workflows/pages.yml`).
 
 ## Jak to działa
 
