@@ -17,55 +17,76 @@ Karciany blef z rosyjską ruletką w 3D, w przeglądarce. Grasz ze znajomymi prz
 - Kto się pomylił (kłamca albo oskarżyciel), pociąga za spust swojego rewolweru: 1 nabój, 6 komór, szansa rośnie z każdym strzałem.
 - Wygrywa ostatni żywy. Czas na ruch: 60 s (4 graczy), 45 s (6), 40 s (8).
 
+### Tryb „Specjalne karty”
+
+Do talii dochodzi po jednej karcie (3 karty zawsze zostają nierozdane, więc nie wiadomo, które są w grze):
+
+| Karta | Liczy się jako | Po odkryciu |
+|---|---|---|
+| 😈 Diabeł | prawda | strzelają wszyscy oprócz tego, kto go zagrał |
+| 🪞 Lustro | prawda | kara odbija się na oskarżyciela |
+| 💥 Podwójny strzał | kłamstwo | przegrany strzela dwa razy |
+
 ## Jak grać
 
-**Bez instalacji:** zbuduj grę (niżej) i wyślij kolegom plik `dist/index.html`. Każdy otwiera go w Chrome lub Edge. Host klika **Załóż pokój** i podaje 5-znakowy kod, reszta wpisuje go i klika **Dołącz**.
+**Z linkiem:** gra jest na GitHub Pages pod adresem `https://<login>.github.io/<repo>/`. Host klika **Załóż pokój** i **Wyślij zaproszenie**, koledzy wchodzą w link i klikają **Dołącz**. Działa też na telefonach.
 
-**Z linkiem:** po włączeniu GitHub Pages (niżej) gra jest pod adresem `https://<twój-login>.github.io/<nazwa-repo>/`. Przycisk **Wyślij zaproszenie** daje wtedy link, który od razu wpisuje kod pokoju. Tak da się grać też na telefonach.
+**Bez internetu do hostingu:** zbuduj grę i wyślij kolegom plik `dist/index.html`. Każdy otwiera go w Chrome lub Edge, a kod pokoju wpisuje ręcznie.
 
-## Budowanie
+## Praca nad kodem
 
-Wymaga Node.js 18+.
+Wymaga Node.js 20.19+ (albo 22.12+).
 
 ```bash
 npm install
-npm run build        # tworzy dist/index.html (jeden plik, ~0,8 MB)
+npm run dev          # serwer deweloperski z podglądem na żywo
+npm test             # testy logiki gry (Vitest)
+npm run typecheck    # sprawdzenie typów TypeScript
+npm run build        # dist/index.html: cała gra w jednym pliku (~0,75 MB)
+npm run check        # wszystko powyżej po kolei
 ```
 
-## Publikacja na GitHub Pages
+Testy multiplayera bez internetu:
 
-W repozytorium wejdź w **Settings → Pages → Build and deployment → Source** i wybierz **GitHub Actions**. Każdy push na `main` lub `master` sam zbuduje grę i ją opublikuje (workflow `.github/workflows/pages.yml`).
+```bash
+npm run peer-server  # lokalny serwer PeerJS na 127.0.0.1:9000
+# otwórz dist/index.html?ps=127.0.0.1 w kilku oknach / profilach przeglądarki
+```
 
-## Jak to działa
+## Architektura
 
-- **Grafika:** [three.js](https://threejs.org/) r128. Wszystkie postacie, stół i rewolwer są zbudowane z prostych brył w kodzie, bez plików modeli. Dźwięki są generowane przez Web Audio.
-- **Sieć:** [PeerJS](https://peerjs.com/) (WebRTC). Host rejestruje pokój na publicznym serwerze sygnalizacyjnym PeerJS pod nazwą `barpodbebenkiem-v1-<kod>`. Gracze łączą się bezpośrednio z przeglądarką hosta, a serwery STUN pomagają przebić się przez routery.
-- **Host prowadzi grę:** tasuje karty, pilnuje kolejki, steruje botami i losuje naboje. Gracze wysyłają tylko swoje ruchy, a host je sprawdza. Karty na ręce trafiają wyłącznie do właściciela.
-- **Odporność:** co 2,5 s idzie ping. Gracz, który milczy ponad 10 s, zwalnia miejsce (w trakcie partii przejmuje je bot). Po odświeżeniu strony gracz wraca na swoje miejsce dzięki tokenowi w `sessionStorage`. Host może wyrzucać graczy w poczekalni.
+```
+src/
+  core/        # logika gry: czysty TypeScript, bez DOM-u, three.js i sieci
+    types.ts       # karty, zdarzenia, akcje
+    constants.ts   # talie, czasy, postacie, charaktery botów
+    deck.ts        # budowanie talii i rozdawanie
+    rules.ts       # prawda/kłamstwo, KŁAMCA!, Diabeł/Lustro/×2, rewolwer, kolejka
+    bots.ts        # decyzje botów
+    engine.ts      # silnik partii (działa u hosta), komunikuje się przez EngineIO
+    text.ts        # polskie teksty i odmiana
+    rng.ts         # losowanie (w testach z ziarnem)
+  view/        # grafika 3D i animacje (three.js r128)
+    scene.ts, textures.ts, characters.ts, tweens.ts, audio.ts
+    game-view.ts   # odtwarza zdarzenia od hosta: karty, ruletka, HUD, kamera
+  net/         # sieć P2P (PeerJS / WebRTC)
+    protocol.ts    # wiadomości host ↔ gracz
+    host.ts        # pokój, poczekalnia, ping, powrót po odświeżeniu, EngineIO
+    client.ts      # dołączanie do pokoju
+  ui/          # menu, poczekalnia, ekran końca
+  main.ts      # łączy wszystko
+tests/         # testy core (w tym setki symulowanych partii)
+```
+
+**Przepływ:** host uruchamia `GameEngine`, który podejmuje wszystkie decyzje i emituje zdarzenia (`round`, `turn`, `play`, `reveal`, `shot`…). `HostSession` wysyła je wszystkim graczom i własnemu widokowi. Każdy widok odtwarza je w kolejce jako animacje. Gracze wysyłają tylko swoje ruchy, które host sprawdza (a silnik sprawdza je jeszcze raz). Karty na ręce dostaje wyłącznie ich właściciel.
+
+**Sieć:** host rejestruje pokój na publicznym serwerze sygnalizacyjnym PeerJS jako `barpodbebenkiem-v1-<kod>`, gracze łączą się bezpośrednio z jego przeglądarką (STUN pomaga przejść przez routery). Co 2,5 s idzie ping; kto milczy ponad 10 s, zwalnia miejsce (w trakcie partii przejmuje je bot). Po odświeżeniu strony gracz wraca na swoje miejsce dzięki tokenowi w `sessionStorage`.
 
 ### Ograniczenia
 
 - Gdy host zamknie lub odświeży kartę, pokój przepada.
 - Bez serwera TURN połączenie nie przejdzie przez część sieci komórkowych i firmowych. Pomaga Wi-Fi albo zmiana hosta.
 
-## Struktura
+## Publikacja
 
-```
-src/
-  index.template.html   # HTML i dodatkowe style, znaczniki /*STYLE*/ /*THREE*/ /*PEER*/ /*JS*/
-  styles.css            # główne style HUD-u
-  js/01-utils.js        # pomocnicze funkcje i teksty
-  js/02-audio.js        # syntezowane dźwięki
-  js/03-scene.js        # sala, stół, lampa, tekstury z canvasu
-  js/04-characters.js   # 8 postaci, rewolwer, rozmieszczenie miejsc
-  js/05-game.js         # widok, logika hosta, boty, sieć, lobby, kamera
-build.mjs               # składa wszystko w dist/index.html
-tools/peer-server.mjs   # lokalny serwer PeerJS do testów
-```
-
-## Testy lokalne bez internetu
-
-```bash
-npm run peer-server
-# otwórz dist/index.html?ps=127.0.0.1 w kilku kartach / profilach przeglądarki
-```
+Workflow `.github/workflows/pages.yml` przy każdym pushu na `main` lub `master` sprawdza typy, uruchamia testy, buduje grę i publikuje ją na GitHub Pages (w ustawieniach repo: **Settings → Pages → Source: GitHub Actions**). Przy pull requestach tylko sprawdza.

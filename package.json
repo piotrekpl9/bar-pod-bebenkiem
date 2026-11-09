@@ -1,20 +1,31 @@
 {
   "name": "bar-pod-bebenkiem",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Karciany blef z rosyjską ruletką w 3D. Multiplayer P2P w przeglądarce, do 8 graczy.",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build",
     "peer-server": "node tools/peer-server.mjs"
   },
   "dependencies": {
-    "@fontsource/sancreek": "^5.3.0",
+    "@fontsource/sancreek": "^5.2.7",
     "peerjs": "1.5.5",
     "three": "0.128.0"
   },
   "devDependencies": {
+    "@types/three": "0.128.0",
     "express": "^4.21.2",
-    "peer": "^1.0.2"
+    "peer": "^1.0.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.7",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^5.1.0"
   }
 }

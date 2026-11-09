@@ -1,22 +1,53 @@
-// ---------- postacie ----------
-// miejsca przy stole: k = pozycja w widoku gracza (0 = ty, na dole), dalej zgodnie z ruchem wskazówek
-let TABLE_N = 4, SEAT_R = 1.85;
-function seatPos(k) { const a = 2 * Math.PI * k / TABLE_N; return new V3(-SEAT_R * Math.sin(a), 0, SEAT_R * Math.cos(a)); }
+import * as THREE from 'three';
+import type { Kind } from '../core/types';
+import { mat, mesh, scene, tableY } from './scene';
+import { backTex, woodTex } from './textures';
 
-function makeChair() {
+export interface Character {
+  root: THREE.Group;
+  upper: THREE.Group;
+  head: THREE.Group;
+  arms: THREE.Group[];
+  /** karty trzymane w ręku (rewersy) */
+  fan: THREE.Group;
+  /** świecące materiały (oczy, wizjer) – gasną po śmierci */
+  glow: THREE.MeshStandardMaterial[];
+  /** powieki / oczy – zamykają się po śmierci */
+  lids: THREE.Mesh[];
+  yaw: number;
+  pitch: number;
+}
+
+export interface Gun {
+  g: THREE.Group;
+  drum: THREE.Group;
+  tip: THREE.Object3D;
+  flashL: THREE.PointLight;
+  flashM: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
+}
+
+// ---------- miejsca przy stole ----------
+// k = pozycja w widoku gracza (0 = ty, na dole), dalej zgodnie z ruchem wskazówek zegara
+export const layoutState = { n: 4, seatR: 1.85 };
+export function seatPos(k: number): THREE.Vector3 {
+  const a = 2 * Math.PI * k / layoutState.n;
+  return new THREE.Vector3(-layoutState.seatR * Math.sin(a), 0, layoutState.seatR * Math.cos(a));
+}
+
+function makeChair(): THREE.Group {
   const g = new THREE.Group(); const w = mat(0x3a2210, { map: woodTex });
   g.add(mesh(new THREE.BoxGeometry(0.55, 0.06, 0.5), w, 0, 0.48, -0.05));
   g.add(mesh(new THREE.BoxGeometry(0.55, 0.78, 0.06), w, 0, 0.9, -0.31));
-  for (const [x, z] of [[-0.24, -0.27], [0.24, -0.27], [-0.24, 0.17], [0.24, 0.17]]) g.add(mesh(new THREE.BoxGeometry(0.05, 0.48, 0.05), w, x, 0.24, z));
+  for (const [x, z] of [[-0.24, -0.27], [0.24, -0.27], [-0.24, 0.17], [0.24, 0.17]] as const) g.add(mesh(new THREE.BoxGeometry(0.05, 0.48, 0.05), w, x, 0.24, z));
   return g;
 }
-const fanGeo = new THREE.PlaneGeometry(0.13, 0.19); fanGeo.translate(0, 0.095, 0);
-const fanMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.6, side: THREE.DoubleSide });
+export const fanGeo = new THREE.PlaneGeometry(0.13, 0.19); fanGeo.translate(0, 0.095, 0);
+export const fanMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: 0.6, side: THREE.DoubleSide });
 
-function makeCharacter(kind) {
+export function makeCharacter(kind: Kind): Character {
   const root = new THREE.Group(); root.add(makeChair());
   const upper = new THREE.Group(); upper.position.y = 0.55; root.add(upper);
-  const P = { robot: 0x45535f, owl: 0x5a3b5e, mustache: 0x6e1c1c, frog: 0x3d4a2c, bear: 0x2f3b4a, cat: 0x4a2a3a, rabbit: 0x5a6a3a, penguin: 0x15161c }[kind];
+  const P = ({ robot: 0x45535f, owl: 0x5a3b5e, mustache: 0x6e1c1c, frog: 0x3d4a2c, bear: 0x2f3b4a, cat: 0x4a2a3a, rabbit: 0x5a6a3a, penguin: 0x15161c } as Record<Kind, number>)[kind];
   const bodyM = mat(P, kind === 'robot' ? { roughness: 0.4, metalness: 0.6 } : {});
   upper.add(mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.6, 20), bodyM, 0, 0.3, 0));
   upper.add(mesh(new THREE.SphereGeometry(0.205, 20, 12), bodyM, 0, 0.6, 0));
@@ -24,7 +55,7 @@ function makeCharacter(kind) {
   if (kind === 'mustache') { // kamizelka i koszula
     upper.add(mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.45, 12, 1, true, -0.6, 1.2), mat(0xe8e0d0, { side: THREE.DoubleSide }), 0, 0.38, 0.13));
   }
-  const arms = [];
+  const arms: THREE.Group[] = [];
   for (const s of [-1, 1]) {
     const arm = new THREE.Group(); arm.position.set(s * 0.25, 0.52, 0.02); arm.rotation.set(-1.15, 0, -s * 0.22);
     arm.add(mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.5, 10), bodyM, 0, -0.25, 0));
@@ -32,7 +63,7 @@ function makeCharacter(kind) {
     upper.add(arm); arms.push(arm);
   }
   const head = new THREE.Group(); head.position.y = 0.78; upper.add(head);
-  const glow = [], lids = [];
+  const glow: THREE.MeshStandardMaterial[] = [], lids: THREE.Mesh[] = [];
   if (kind === 'robot') {
     const hm = mat(0x8a99a8, { metalness: 0.7, roughness: 0.35 });
     head.add(mesh(new THREE.BoxGeometry(0.36, 0.3, 0.32), hm, 0, 0.15, 0));
@@ -147,7 +178,7 @@ function makeCharacter(kind) {
 }
 
 // ---------- rewolwer ----------
-function makeGun() {
+function makeGun(): Gun {
   const g = new THREE.Group(), s = new THREE.Group(); g.add(s);
   const metal = mat(0x2a2a2e, { metalness: 0.85, roughness: 0.32 });
   const dark = mat(0x0a0a0a, { roughness: 0.9 });
@@ -168,8 +199,8 @@ function makeGun() {
   tip.add(flashM);
   return { g, drum, tip, flashL, flashM };
 }
-const gun = makeGun(); scene.add(gun.g);
-const GUN_REST_POS = new V3(0.7, tableY + 0.075, 0.32);
-const GUN_REST_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 2.3, Math.PI / 2));
+export const gun = makeGun(); scene.add(gun.g);
+export const GUN_REST_POS = new THREE.Vector3(0.7, tableY + 0.075, 0.32);
+export const GUN_REST_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 2.3, Math.PI / 2));
 gun.g.position.copy(GUN_REST_POS); gun.g.quaternion.copy(GUN_REST_Q);
 
