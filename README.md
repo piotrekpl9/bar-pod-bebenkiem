@@ -31,6 +31,8 @@ Do talii dochodzi po jednej karcie (3 karty zawsze zostają nierozdane, więc ni
 
 Każdy wybiera postać w menu albo w poczekalni (żaba, robot, sowa, wąsacz, miś, kotka, królik, pingwin). Przy stole każda postać może siedzieć tylko raz, a boty dostają te, których nikt nie wybrał. Przed każdą partią miejsca są losowane; host może to wyłączyć w poczekalni.
 
+Postać każdego człowieka przy stole obraca głowę tam, gdzie on naprawdę patrzy (przeciąganie widoku). Kiedy patrzysz prosto na kogoś, on widzi, że twoja postać patrzy na niego.
+
 ## Jak grać
 
 **Z linkiem:** gra jest na GitHub Pages pod adresem `https://<login>.github.io/<repo>/`. Host klika **Załóż pokój** i **Wyślij zaproszenie**, koledzy wchodzą w link i klikają **Dołącz**. Działa też na telefonach.
@@ -70,6 +72,7 @@ src/
     engine.ts      # silnik partii (działa u hosta), komunikuje się przez EngineIO
     text.ts        # polskie teksty i odmiana
     kinds.ts       # postacie: wybór bez powtórzeń
+    gaze.ts        # spojrzenia: przeliczanie między widokami graczy
     rng.ts         # losowanie (w testach z ziarnem)
   view/        # grafika 3D i animacje (three.js r128)
     scene.ts, textures.ts, characters.ts, tweens.ts, audio.ts

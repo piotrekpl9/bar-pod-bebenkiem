@@ -1,9 +1,10 @@
 // Gracz dołączający do pokoju hosta.
 
 import { Peer, type DataConnection } from 'peerjs';
+import { sanitizeGaze, type Gaze } from '../core/gaze';
 import type { Kind, ViewEvent } from '../core/types';
 import { session } from '../ui/dom';
-import { handleEvent, type PlayerAction } from '../view/game-view';
+import { V, handleEvent, setGaze, type PlayerAction } from '../view/game-view';
 import { isMsg, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
 
 export interface ClientHooks {
@@ -66,6 +67,7 @@ export class ClientSession {
 
   act(a: PlayerAction): void { this.send({ t: 'act', a }); }
   pick(kind: Kind): void { this.send({ t: 'pick', kind }); }
+  look(g: Gaze): void { this.send({ t: 'look', g }); }
 
   private send(msg: ClientMsg): void {
     try { if (this.conn?.open) void this.conn.send(msg); } catch (e) { console.warn(e); }
@@ -90,6 +92,11 @@ export class ClientSession {
         return;
       case 'reject': this.hooks.rejected(msg.reason || 'Host odrzucił połączenie.'); return;
       case 'lobby': this.hooks.lobby(msg); return;
+      case 'look': {
+        const g = sanitizeGaze(msg.g, V.size);
+        if (g && Number.isInteger(msg.seat)) setGaze(msg.seat, g);
+        return;
+      }
       default: handleEvent(msg as ViewEvent);
     }
   }

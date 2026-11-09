@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { KINDS } from '../core/constants';
+import { fromCanonical, gazeChanged, toCanonical, type Gaze } from '../core/gaze';
 import { isTruthful } from '../core/rules';
 import { FULL, RELIEF, SPECIAL_DESC, cardLabel, claimText, deckDesc } from '../core/text';
 import type { Card, GameEvent, Kind, Mode, PublicSeat, PublicState, Rank, TableSize, ViewEvent } from '../core/types';
@@ -34,10 +35,17 @@ let pileH = 0;
 let shake = 0;
 
 let sendAction: (a: PlayerAction) => void = () => {};
+let sendLook: (g: Gaze) => void = () => {};
 let onEnd: (ev: Extract<GameEvent, { t: 'end' }>) => void = () => {};
-export function bindView(opts: { send: (a: PlayerAction) => void; end: (ev: Extract<GameEvent, { t: 'end' }>) => void }): void {
-  sendAction = opts.send; onEnd = opts.end;
+export function bindView(opts: { send: (a: PlayerAction) => void; look: (g: Gaze) => void; end: (ev: Extract<GameEvent, { t: 'end' }>) => void }): void {
+  sendAction = opts.send; sendLook = opts.look; onEnd = opts.end;
 }
+
+// ---------- spojrzenia innych graczy ----------
+const gazes = new Map<number, { g: Gaze; t: number }>();
+/** Gdzie patrzy gracz na miejscu `seat` (przychodzi z sieci). */
+export function setGaze(seat: number, g: Gaze): void { gazes.set(seat, { g, t: performance.now() }); }
+const GAZE_FRESH_MS = 8000;
 export function setMySeat(seat: number): void { V.mySeat = seat; }
 
 const vIdx = (s: number) => (s - V.mySeat + V.size) % V.size;
@@ -240,6 +248,7 @@ function beginTable(mode: Mode, st: PublicState): void {
   V.mode = mode;
   setTableSize(st.length as TableSize);
   V.seats = st.slice(); V.turn = null; V.myHand = []; sel.clear();
+  gazes.clear(); lastGaze = null;
   resetVisuals(); hideScreens(); renderHand(false); applySt(st);
 }
 
@@ -463,6 +472,48 @@ window.addEventListener('resize', layout);
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), camFwd = new THREE.Vector3(), toHead = new THREE.Vector3();
 /** Postać, na którą patrzysz (w stożku ~8° od środka ekranu), odwzajemnia spojrzenie. */
 const EYE_CONTACT_COS = Math.cos(8 * Math.PI / 180);
+
+// ---------- moje spojrzenie dla innych ----------
+let lastGaze: Gaze | null = null, lastGazeAt = 0, nextGazeCheck = 0;
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/** Na kogo albo na co patrzę: postać na środku ekranu, a jeśli żadna – punkt na stole przed kamerą. */
+function myGaze(): Gaze {
+  let best = -1, bestDot = EYE_CONTACT_COS;
+  V.seats.forEach((s, i) => {
+    const c = charAt(i);
+    if (!s || i === V.mySeat || !c?.root.visible) return;
+    const d = c.head.getWorldPosition(toHead).sub(camera.position).normalize().dot(camFwd);
+    if (d > bestDot) { bestDot = d; best = i; }
+  });
+  if (best >= 0) return { at: best };
+  const t = camFwd.y < -0.05 ? Math.min(6, (tableY - camera.position.y) / camFwd.y) : 5;
+  const p = camera.position.clone().addScaledVector(camFwd, t);
+  const [x, y, z] = toCanonical([p.x, p.y, p.z], V.mySeat, V.size);
+  return { p: [r2(x), r2(y), r2(z)] };
+}
+
+/** Wysyła spojrzenie najwyżej ~7 razy na sekundę i tylko gdy się zmieniło (albo co 2 s). */
+function shareGaze(now: number): void {
+  if (now < nextGazeCheck || !V.seats.length || !V.seats[V.mySeat]?.alive) return;
+  nextGazeCheck = now + 150;
+  const g = myGaze();
+  if (gazeChanged(lastGaze, g) || now - lastGazeAt > 2000) { lastGaze = g; lastGazeAt = now; sendLook(g); }
+}
+
+/** Punkt, na który patrzy inny człowiek (w moim widoku), albo null, gdy nic nie wiadomo. */
+function humanGazeTarget(i: number, now: number, out: THREE.Vector3): boolean {
+  const e = gazes.get(i);
+  if (!e || now - e.t > GAZE_FRESH_MS) return false;
+  if ('at' in e.g) {
+    if (e.g.at === V.mySeat) { out.copy(camera.position); return true; }
+    const tc = charAt(e.g.at);
+    if (!tc) return false;
+    tc.head.getWorldPosition(out); return true;
+  }
+  const [x, y, z] = fromCanonical(e.g.p, V.mySeat, V.size);
+  out.set(x, y, z); return true;
+}
 const clock = new THREE.Clock();
 const timerEl = $('#timer');
 
@@ -498,15 +549,19 @@ function frame(now: number): void {
 
   // postacie: oddech, wzrok, podpisy nad głowami
   camera.getWorldDirection(camFwd);
+  shareGaze(now);
   labels.forEach((L, i) => {
     const s = V.seats[i], c = charAt(i);
     if (!s || !c || !c.root.visible) { L.el.style.display = 'none'; return; }
     if (s.alive) {
       c.upper.position.y = 0.55 + Math.sin(t * 1.6 + i * 2) * 0.006;
-      // gdzie patrzy: rewolwer w ruchu > ty (gdy na nią patrzysz) > aktywny gracz > ty
+      // Człowiek: głowa idzie tam, gdzie on naprawdę patrzy (dane z sieci).
+      // Bot: rewolwer w ruchu > ty (gdy na niego patrzysz) > aktywny gracz > ty.
       c.head.getWorldPosition(toHead).sub(camera.position).normalize();
-      const eyeContact = toHead.dot(camFwd) > EYE_CONTACT_COS;
-      if (gun.g.position.distanceTo(GUN_REST_POS) > 0.05) tmp2.copy(gun.g.position);
+      const human = !s.isBot && i !== V.mySeat && humanGazeTarget(i, now, tmp2);
+      const eyeContact = !human && toHead.dot(camFwd) > EYE_CONTACT_COS;
+      if (human) { /* cel już w tmp2 */ }
+      else if (gun.g.position.distanceTo(GUN_REST_POS) > 0.05) tmp2.copy(gun.g.position);
       else if (eyeContact) tmp2.copy(camera.position);
       else if (V.active >= 0 && V.active !== i) {
         const ac = charAt(V.active);
@@ -516,7 +571,7 @@ function frame(now: number): void {
       const local = c.root.worldToLocal(tmp2.clone()).sub(new THREE.Vector3(0, 1.45, 0));
       const ty = Math.max(-1.2, Math.min(1.2, Math.atan2(local.x, local.z)));
       const tp = Math.max(-0.5, Math.min(0.5, -Math.atan2(local.y, Math.hypot(local.x, local.z))));
-      const speed = eyeContact ? 0.1 : 0.06;
+      const speed = human ? 0.15 : eyeContact ? 0.1 : 0.06;
       c.yaw += (ty - c.yaw) * speed; c.pitch += (tp - c.pitch) * speed;
       c.head.rotation.y = c.yaw; c.head.rotation.x = c.pitch;
       c.fan.rotation.z = Math.sin(t * 1.3 + i) * 0.03;

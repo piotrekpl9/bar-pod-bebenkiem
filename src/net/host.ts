@@ -4,12 +4,13 @@
 import { Peer, type DataConnection } from 'peerjs';
 import { GameEngine, botSlot, newSlot, type EngineIO, type PlayerSlot } from '../core/engine';
 import { freeKind, isKind, takenKinds } from '../core/kinds';
+import { sanitizeGaze, type Gaze } from '../core/gaze';
 import { shuffle } from '../core/rng';
 import { isValidPlay } from '../core/rules';
 import { people } from '../core/text';
 import type { Action, Card, GameEvent, Kind, Mode, TableSize, TurnRequest } from '../core/types';
 import { sleep } from '../ui/dom';
-import { drained, handleEvent, type PlayerAction } from '../view/game-view';
+import { drained, handleEvent, setGaze, type PlayerAction } from '../view/game-view';
 import { cleanName, genCode, isMsg, newToken, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
 
 export interface HostSlot extends PlayerSlot {
@@ -189,6 +190,7 @@ export class HostSession implements EngineIO {
     if (msg.t === 'pong') return;
     if (msg.t === 'act') { if (m.seat != null) this.act(m.seat, msg.a); return; }
     if (msg.t === 'pick') { if (m.seat != null) this.pick(m.seat, msg.kind); return; }
+    if (msg.t === 'look') { if (m.seat != null) this.relayGaze(m.seat, msg.g); return; }
     if (msg.t === 'hello' && m.seat == null) this.onHello(conn, m, msg);
   }
 
@@ -301,6 +303,20 @@ export class HostSession implements EngineIO {
     this.broadcastLobby();
     return null;
   }
+
+  /** Spojrzenie gracza: pokazuje je u siebie i przekazuje pozostałym (poza nadawcą). */
+  relayGaze(seat: number, g: unknown): void {
+    const gaze = sanitizeGaze(g, this.size);
+    if (!gaze || !this.running) return;
+    if (seat !== this.localSeat) setGaze(seat, gaze);
+    for (let i = 0; i < this.slots.length; i++) {
+      const c = this.slots[i]?.conn;
+      if (c && i !== seat) this.send(c, { t: 'look', seat, g: gaze });
+    }
+  }
+
+  /** Spojrzenie hosta. */
+  look(g: Gaze): void { this.relayGaze(this.localSeat, g); }
 
   /** Zmiana postaci w poczekalni. Zajęta przez kogoś innego – ignorowana. */
   pick(seat: number, kind: unknown): void {

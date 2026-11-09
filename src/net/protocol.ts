@@ -1,4 +1,5 @@
 import type { PeerOptions } from 'peerjs';
+import type { Gaze } from '../core/gaze';
 import type { Kind, Mode, TableSize, ViewEvent } from '../core/types';
 import type { PlayerAction } from '../view/game-view';
 
@@ -22,12 +23,15 @@ export type HostMsg =
   | { t: 'welcome'; seat: number; code: string; token: string }
   | { t: 'reject'; reason: string }
   | { t: 'kicked' }
-  | { t: 'ping' };
+  | { t: 'ping' }
+  /** gdzie patrzy gracz na miejscu `seat` (tylko wygląd, bez wpływu na grę) */
+  | { t: 'look'; seat: number; g: Gaze };
 
 /** Wiadomości gracz → host. */
 export type ClientMsg =
   | { t: 'hello'; name: string; token: string; kind?: Kind }
   | { t: 'pick'; kind: Kind }
+  | { t: 'look'; g: Gaze }
   | { t: 'act'; a: PlayerAction }
   | { t: 'pong' };
 

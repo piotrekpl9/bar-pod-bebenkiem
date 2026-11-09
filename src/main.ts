@@ -26,6 +26,7 @@ const showLobby = (info: LobbyInfo) => renderLobby(info, lobbyCtx());
 
 bindView({
   send: a => (host ? host.act(V.mySeat, a) : client?.act(a)),
+  look: g => (host ? host.look(g) : client?.look(g)),
   end: ev => showEnd(ev, V.mySeat, V.seats, !!host),
 });
 
