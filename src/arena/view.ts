@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { $, store } from '../ui/dom';
+import { initAudio } from '../view/audio';
 import { renderer, canvas } from '../view/scene';
 import { BotBrain, BOT_LEVEL_NAMES, type BotLevel } from './bot';
 import { Duel, IDLE, type DuelInput, type DuelMsg, type ShotInfo } from './duel';
@@ -124,6 +125,7 @@ function sens(): number { const v = Number(store.get('bpb-sens') ?? 1); return N
 
 // ---------- wejście / wyjście ----------
 export function enterArena(o: ArenaStart): ArenaSession {
+  initAudio(); // dźwięk wymaga gestu użytkownika – wejście na arenę jest efektem kliknięcia
   if (R) closeRuntime();
   ensureWorld();
   const now = performance.now() / 1000;
@@ -239,7 +241,7 @@ function bindInput(): void {
   });
   window.addEventListener('keyup', e => { R?.keys.delete(e.code); });
   window.addEventListener('blur', () => { if (R) { R.keys.clear(); R.mouse = false; } });
-  $('#arPlay').addEventListener('click', lock);
+  $('#arPlay').addEventListener('click', () => { initAudio(); lock(); });
   $('#arQuit').addEventListener('click', leaveArena);
   $('#arBack').addEventListener('click', leaveArena);
   $('#arAgain').addEventListener('click', restartBot);
