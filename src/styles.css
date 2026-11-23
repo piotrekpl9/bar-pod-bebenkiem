@@ -129,3 +129,5 @@
 #tvBox .tv-vol input[type=range]{flex:1;min-width:0;accent-color:#e8c27a}
 #tvBox #tvVolTxt{width:38px;text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
 #tvBox .tv-vol.off #tvVol,#tvBox .tv-vol.off #tvVolTxt{opacity:.4}
+#tvBox .tv-here{justify-content:flex-start;margin:0;font-size:13px}
+#tvBox .tv-here input{accent-color:#e8c27a}

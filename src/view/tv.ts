@@ -61,8 +61,10 @@ window.addEventListener('message', e => {
 function post(func: string, args: unknown[] = []): void {
   iframe?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
 }
+/** Wyciszenie tylko u tego gracza – nie zmienia głośności pozostałym. */
+let mutedHere = false;
 function applySound(): void {
-  if (vol.muted || vol.volume === 0) post('mute');
+  if (mutedHere || vol.muted || vol.volume === 0) post('mute');
   else { post('unMute'); post('setVolume', [vol.volume]); }
 }
 
@@ -100,6 +102,8 @@ export function setTvVideo(id: string | null, startSec = 0): void {
 /** Ustawia głośność (przychodzi od dowolnego gracza przy stole). */
 export function setTvVolume(v: TvVolume): void { vol = { ...v }; applySound(); onVolume(vol); }
 export const tvVolume = (): TvVolume => ({ ...vol });
+export function setTvMutedHere(on: boolean): void { mutedHere = on; applySound(); onVolume(vol); }
+export const tvMutedHere = (): boolean => mutedHere;
 export const tvPlaying = (): boolean => !!player;
 
 export function layoutTv(w: number, h: number): void { css.setSize(w, h); }
