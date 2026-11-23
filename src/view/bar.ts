@@ -138,6 +138,8 @@ const jukeTex = canvasTex(128, 256, (g: Ctx, w: number, h: number) => {
 // ---------- budowa ----------
 const barObjects: THREE.Object3D[] = [];
 const add = <T extends THREE.Object3D>(o: T): T => { scene.add(o); barObjects.push(o); return o; };
+/** Dodaje `c` do `parent` i zwraca `c` (Object3D.add zwraca rodzica, więc `.add(x).position…` przesuwało całą grupę). */
+const child = <T extends THREE.Object3D>(parent: THREE.Object3D, c: T): T => { parent.add(c); return c; };
 const basic = (o: THREE.MeshBasicMaterialParameters) => new THREE.MeshBasicMaterial({ toneMapped: false, ...o });
 
 // podłoga, ściany, sufit
@@ -216,9 +218,9 @@ clock.position.set(-3.0, 3.9, BACK + 0.03);
 
 // ---------- okno z deszczem (zimne światło z zewnątrz) ----------
 const win = new THREE.Group(); win.position.set(LEFT + 0.02, 2.3, -1.6); win.rotation.y = Math.PI / 2; add(win);
-win.add(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: skyTex }))).position.z = 0.01;
+child(win, new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: skyTex }))).position.z = 0.01;
 for (const [tex, z] of [[rainFar, 0.014], [rainNear, 0.018]] as const) {
-  win.add(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: tex, transparent: true, depthWrite: false }))).position.z = z;
+  child(win, new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: tex, transparent: true, depthWrite: false }))).position.z = z;
 }
 const frameM = mat(0x1a100a, { map: woodTex });
 for (const [w, h, x, y] of [[1.7, 0.1, 0, 0.9], [1.7, 0.1, 0, -0.9], [0.1, 1.9, 0.8, 0], [0.1, 1.9, -0.8, 0], [1.6, 0.05, 0, 0], [0.05, 1.8, 0, 0]] as const) {
@@ -282,9 +284,9 @@ const sconceGlows: THREE.Sprite[] = [];
 for (const [x, z, ry] of [[LEFT + 0.05, -3.4, Math.PI / 2], [LEFT + 0.05, 2.4, Math.PI / 2], [RIGHT - 0.05, -3.6, -Math.PI / 2], [RIGHT - 0.05, 0.2, -Math.PI / 2]] as const) {
   const g = new THREE.Group(); g.position.set(x, 2.7, z); g.rotation.y = ry; add(g);
   g.add(mesh(new THREE.BoxGeometry(0.16, 0.24, 0.05), mat(0x6a4a20, { metalness: 0.7, roughness: 0.35 }), 0, 0, 0.02));
-  g.add(mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 6), mat(0x6a4a20, { metalness: 0.7 }), 0, 0.02, 0.1)).rotation.x = Math.PI / 2;
+  child(g, mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 6), mat(0x6a4a20, { metalness: 0.7 }), 0, 0.02, 0.1)).rotation.x = Math.PI / 2;
   const bulbM = basic({ color: 0xffd090 });
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), bulbM)).position.set(0, 0.06, 0.19);
+  child(g, new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), bulbM)).position.set(0, 0.06, 0.19);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 }));
   glow.position.set(0, 0.06, 0.22); glow.scale.set(1.3, 1.3, 1); g.add(glow); sconceGlows.push(glow);
   // ciepła plama światła na ścianie
@@ -303,12 +305,12 @@ const darkWood = mat(0x24150b, { map: woodTex, roughness: 0.6 });
   g.add(mesh(new THREE.BoxGeometry(1.34, 0.03, 0.16), mat(0xf2ead8, { roughness: 0.4 }), 0, 0.835, 0.3));
   const blackKey = mat(0x0a0a0a, { roughness: 0.4 });
   for (let k = 0; k < 26; k++) if (k % 7 !== 2 && k % 7 !== 6) g.add(mesh(new THREE.BoxGeometry(0.028, 0.03, 0.09), blackKey, -0.64 + k * 0.05 + 0.025, 0.855, 0.27));
-  g.add(mesh(new THREE.BoxGeometry(0.5, 0.36, 0.02), mat(0xd8c8a0, { roughness: 0.9 }), 0, 1.06, 0.21)).rotation.x = -0.2; // nuty
+  child(g, mesh(new THREE.BoxGeometry(0.5, 0.36, 0.02), mat(0xd8c8a0, { roughness: 0.9 }), 0, 1.06, 0.21)).rotation.x = -0.2; // nuty
   g.add(mesh(new THREE.BoxGeometry(0.45, 0.04, 0.32), darkWood, 0, 0.46, 0.75)); // ławka
   for (const [lx, lz] of [[-0.19, 0.62], [0.19, 0.62], [-0.19, 0.88], [0.19, 0.88]] as const) g.add(mesh(new THREE.BoxGeometry(0.04, 0.44, 0.04), darkWood, lx, 0.22, lz));
   g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 10), mat(0xe8dcc0), 0.55, 1.31, 0));
   const fm = basic({ color: 0xffb040, transparent: true });
-  g.add(new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 8), fm)).position.set(0.55, 1.4, 0);
+  child(g, new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 8), fm)).position.set(0.55, 1.4, 0);
   flames.push({ m: fm, light: null, seed: 3.3 });
 }
 
@@ -316,7 +318,7 @@ const darkWood = mat(0x24150b, { map: woodTex, roughness: 0.6 });
 {
   const g = new THREE.Group(); g.position.set(LEFT + 0.05, 3.25, -4.0); g.rotation.y = Math.PI / 2; add(g);
   const bone = mat(0xd8c8a8, { roughness: 0.7 });
-  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.05, 6), darkWood, 0, 0, 0.02)).rotation.x = Math.PI / 2;
+  child(g, mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.05, 6), darkWood, 0, 0, 0.02)).rotation.x = Math.PI / 2;
   g.add(mesh(new THREE.SphereGeometry(0.1, 10, 8), bone, 0, 0.02, 0.1));
   for (const s of [-1, 1]) {
     const beam = mesh(new THREE.CylinderGeometry(0.018, 0.028, 0.6, 6), bone, s * 0.2, 0.25, 0.12); beam.rotation.z = -s * 0.75; g.add(beam);
@@ -333,8 +335,8 @@ const darkWood = mat(0x24150b, { map: woodTex, roughness: 0.6 });
   g.add(mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.04, 12), darkWood, 0, 0.02, 0));
   for (let k = 0; k < 4; k++) { const hook = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 5), darkWood, Math.cos(k * 1.57) * 0.08, 1.8, Math.sin(k * 1.57) * 0.08); hook.rotation.set(Math.sin(k * 1.57) * 0.9, 0, -Math.cos(k * 1.57) * 0.9); g.add(hook); }
   const coat = mesh(new THREE.CylinderGeometry(0.12, 0.26, 1.0, 12, 1, true), mat(0x3a2a20, { side: THREE.DoubleSide, roughness: 0.95 }), 0.02, 1.25, -0.08); coat.rotation.x = 0.08; g.add(coat);
-  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.015, 20), mat(0x1a1410), 0.08, 1.95, 0.05)).rotation.z = 0.25;
-  g.add(mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.13, 16), mat(0x1a1410), 0.1, 2.02, 0.05)).rotation.z = 0.25;
+  child(g, mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.015, 20), mat(0x1a1410), 0.08, 1.95, 0.05)).rotation.z = 0.25;
+  child(g, mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.13, 16), mat(0x1a1410), 0.1, 2.02, 0.05)).rotation.z = 0.25;
 }
 
 // skrzynki przy szafie grającej
