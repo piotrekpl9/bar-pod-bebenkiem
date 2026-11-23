@@ -101,8 +101,14 @@
     <button class="act btn-gold" id="tvPlay">Puść</button>
     <button class="act btn-dark" id="tvOff">Wyłącz</button>
   </div>
-  <button class="act btn-dark tv-sound" id="tvSound">🔇 Dźwięk TV: wyłączony</button>
-  <div class="small" id="tvNote">Wszyscy przy stole widzą ten sam filmik. Dźwięk każdy włącza u siebie.</div>
+  <div class="tv-vol">
+    <button class="ico" id="tvMute" title="Wycisz / włącz dźwięk">🔇</button>
+    <button class="ico" id="tvDown" title="Ciszej">−</button>
+    <input type="range" id="tvVol" min="0" max="100" step="5" value="60" aria-label="Głośność telewizora">
+    <button class="ico" id="tvUp" title="Głośniej">+</button>
+    <span id="tvVolTxt">60%</span>
+  </div>
+  <div class="small" id="tvNote">Filmik i głośność są wspólne dla wszystkich przy stole – jak jeden pilot.</div>
   <div class="status" id="tvStatus"></div>
 </div>
 

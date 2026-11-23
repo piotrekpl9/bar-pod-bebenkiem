@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { embedUrl, isVideoId, parseTime, parseYouTube, tvErrorText } from '../src/core/youtube';
+import { embedUrl, isVideoId, parseTime, parseYouTube, sanitizeVolume, tvErrorText } from '../src/core/youtube';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -58,5 +58,16 @@ describe('błędy odtwarzacza', () => {
     expect(tvErrorText(153)).toMatch(/z pliku/);
     expect(tvErrorText(100)).toMatch(/prywatny/);
     expect(tvErrorText(999)).toMatch(/999/);
+  });
+});
+
+describe('głośność z sieci', () => {
+  it('przepuszcza i przycina do 0–100', () => {
+    expect(sanitizeVolume({ volume: 55, muted: false })).toEqual({ volume: 55, muted: false });
+    expect(sanitizeVolume({ volume: 140.4, muted: true })).toEqual({ volume: 100, muted: true });
+    expect(sanitizeVolume({ volume: -3, muted: false })).toEqual({ volume: 0, muted: false });
+  });
+  it('odrzuca śmieci', () => {
+    for (const bad of [null, 5, {}, { volume: '50', muted: false }, { volume: NaN, muted: false }, { volume: 50 }, { volume: 50, muted: 'nie' }]) expect(sanitizeVolume(bad)).toBeNull();
   });
 });

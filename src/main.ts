@@ -11,8 +11,8 @@ import type { Kind } from './core/types';
 import { $, showScreen, status } from './ui/dom';
 import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
 import { initAudio, toggleMute } from './view/audio';
-import { parseYouTube, tvErrorText } from './core/youtube';
-import { TV_SUPPORTED, onTvError, setTvVideo, toggleTvSound } from './view/tv';
+import { parseYouTube, tvErrorText, type TvVolume } from './core/youtube';
+import { TV_SUPPORTED, onTvError, onTvVolume, setTvVideo, setTvVolume, tvVolume } from './view/tv';
 import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
 
 let host: HostSession | null = null;
@@ -119,9 +119,33 @@ const playTv = () => {
 $('#tvPlay').addEventListener('click', playTv);
 $('#tvUrl').addEventListener('keydown', e => { if (e.key === 'Enter') playTv(); });
 $('#tvOff').addEventListener('click', () => { tvSet(null, 0); status('Telewizor wyłączony.', '#tvStatus'); });
-$('#tvSound').addEventListener('click', () => {
-  const on = toggleTvSound();
-  $('#tvSound').textContent = on ? '🔊 Dźwięk TV: włączony' : '🔇 Dźwięk TV: wyłączony';
+// Głośność: wspólna dla stołu (host rozsyła), bez pokoju – tylko u siebie.
+function tvVolSet(v: TvVolume): void {
+  if (host) host.setTvVolume(v);
+  else if (client) { setTvVolume(v); client.tvVolume(v); }
+  else setTvVolume(v);
+}
+const volInput = $<HTMLInputElement>('#tvVol');
+function paintVolume(v: TvVolume): void {
+  const silent = v.muted || v.volume === 0;
+  $('#tvMute').textContent = silent ? '🔇' : v.volume < 40 ? '🔈' : '🔊';
+  $('.tv-vol').classList.toggle('off', silent);
+  if (document.activeElement !== volInput) volInput.value = String(v.volume);
+  $('#tvVolTxt').textContent = `${v.volume}%`;
+}
+onTvVolume(paintVolume);
+paintVolume(tvVolume());
+const nudge = (d: number) => { const v = tvVolume(); tvVolSet({ volume: Math.max(0, Math.min(100, v.volume + d)), muted: false }); };
+$('#tvMute').addEventListener('click', () => { const v = tvVolume(); tvVolSet({ ...v, muted: !(v.muted || v.volume === 0), volume: v.volume || 60 }); });
+$('#tvDown').addEventListener('click', () => nudge(-10));
+$('#tvUp').addEventListener('click', () => nudge(10));
+// suwak: na bieżąco u siebie, do innych najwyżej co 150 ms i zawsze po puszczeniu
+let volSentAt = 0;
+volInput.addEventListener('input', () => {
+  const v = { volume: Number(volInput.value), muted: false };
+  $('#tvVolTxt').textContent = `${v.volume}%`;
+  if (Date.now() - volSentAt > 150) { volSentAt = Date.now(); tvVolSet(v); }
 });
+volInput.addEventListener('change', () => tvVolSet({ volume: Number(volInput.value), muted: false }));
 
 startRendering();

@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
-import { embedUrl } from '../core/youtube';
+import { DEFAULT_TV_VOLUME, embedUrl, type TvVolume } from '../core/youtube';
 import { camera, mat, mesh, scene } from './scene';
 
 /** YouTube nie odtwarza osadzonych filmów ze strony otwartej z pliku (brak adresu strony). */
@@ -43,7 +43,10 @@ document.getElementById('tvLayer')!.appendChild(css.domElement);
 const cssScene = new THREE.Scene();
 let iframe: HTMLIFrameElement | null = null;
 let player: CSS3DObject | null = null;
-let soundOn = false;
+let vol: TvVolume = { ...DEFAULT_TV_VOLUME };
+let onVolume: (v: TvVolume) => void = () => {};
+/** Wywoływane po każdej zmianie głośności (np. od innego gracza), żeby odświeżyć panel. */
+export function onTvVolume(fn: (v: TvVolume) => void): void { onVolume = fn; }
 let onError: (code: number) => void = () => {};
 /** Wywoływane, gdy odtwarzacz YouTube zgłosi błąd (np. film zablokowany do osadzania). */
 export function onTvError(fn: (code: number) => void): void { onError = fn; }
@@ -59,7 +62,8 @@ function post(func: string, args: unknown[] = []): void {
   iframe?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
 }
 function applySound(): void {
-  if (soundOn) { post('unMute'); post('setVolume', [70]); } else post('mute');
+  if (vol.muted || vol.volume === 0) post('mute');
+  else { post('unMute'); post('setVolume', [vol.volume]); }
 }
 
 /** Włącza filmik (id) od podanej sekundy albo wyłącza telewizor (null). */
@@ -93,7 +97,9 @@ export function setTvVideo(id: string | null, startSec = 0): void {
 }
 
 /** Dźwięk telewizora (lokalnie, u każdego osobno). Zwraca nowy stan. */
-export function toggleTvSound(): boolean { soundOn = !soundOn; applySound(); return soundOn; }
+/** Ustawia głośność (przychodzi od dowolnego gracza przy stole). */
+export function setTvVolume(v: TvVolume): void { vol = { ...v }; applySound(); onVolume(vol); }
+export const tvVolume = (): TvVolume => ({ ...vol });
 export const tvPlaying = (): boolean => !!player;
 
 export function layoutTv(w: number, h: number): void { css.setSize(w, h); }

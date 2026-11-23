@@ -34,6 +34,18 @@ export function parseTime(t: string | null): number {
   return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
 }
 
+/** Głośność telewizora wspólna dla całego stołu. */
+export interface TvVolume { volume: number; muted: boolean }
+export const DEFAULT_TV_VOLUME: TvVolume = { volume: 60, muted: true };
+
+/** Dane z sieci: głośność 0–100 (liczba całkowita) i wyciszenie. */
+export function sanitizeVolume(v: unknown): TvVolume | null {
+  if (!v || typeof v !== 'object') return null;
+  const { volume, muted } = v as Record<string, unknown>;
+  if (typeof volume !== 'number' || !Number.isFinite(volume) || typeof muted !== 'boolean') return null;
+  return { volume: Math.round(Math.max(0, Math.min(100, volume))), muted };
+}
+
 /** Kody błędów odtwarzacza YouTube → komunikat po polsku. */
 export function tvErrorText(code: number): string {
   switch (code) {

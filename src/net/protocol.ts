@@ -1,5 +1,6 @@
 import type { PeerOptions } from 'peerjs';
 import type { Gaze } from '../core/gaze';
+import type { TvVolume } from '../core/youtube';
 import type { Kind, Mode, TableSize, ViewEvent } from '../core/types';
 import type { PlayerAction } from '../view/game-view';
 
@@ -27,7 +28,9 @@ export type HostMsg =
   /** gdzie patrzy gracz na miejscu `seat` (tylko wygląd, bez wpływu na grę) */
   | { t: 'look'; seat: number; g: Gaze }
   /** telewizor: filmik (null = wyłączony) i od której sekundy */
-  | { t: 'tv'; id: string | null; at: number };
+  | { t: 'tv'; id: string | null; at: number }
+  /** głośność telewizora – wspólna dla stołu */
+  | { t: 'tvvol'; v: TvVolume };
 
 /** Wiadomości gracz → host. */
 export type ClientMsg =
@@ -35,6 +38,7 @@ export type ClientMsg =
   | { t: 'pick'; kind: Kind }
   | { t: 'look'; g: Gaze }
   | { t: 'tv'; id: string | null; start: number }
+  | { t: 'tvvol'; v: TvVolume }
   | { t: 'act'; a: PlayerAction }
   | { t: 'pong' };
 

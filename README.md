@@ -35,7 +35,7 @@ Postać każdego człowieka przy stole obraca głowę tam, gdzie on naprawdę pa
 
 ### Telewizor 📺
 
-Na ścianie wisi telewizor. Przycisk 📺 w prawym górnym rogu pozwala wkleić link do YouTube i puścić filmik – w grze online widzą go wszyscy (spóźnieni dołączają od bieżącego momentu). Dźwięk każdy włącza u siebie. YouTube nie odtwarza osadzonych filmów ze strony otwartej z pliku, więc telewizor działa na stronie z linku (GitHub Pages) albo przy `npm run dev`.
+Na ścianie wisi telewizor. Przycisk 📺 w prawym górnym rogu pozwala wkleić link do YouTube i puścić filmik – w grze online widzą go wszyscy (spóźnieni dołączają od bieżącego momentu). Głośność (suwak, − / +, wyciszenie) też jest wspólna – jak jeden pilot. YouTube nie odtwarza osadzonych filmów ze strony otwartej z pliku, więc telewizor działa na stronie z linku (GitHub Pages) albo przy `npm run dev`.
 
 ## Jak grać
 

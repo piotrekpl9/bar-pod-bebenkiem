@@ -5,8 +5,8 @@ import { Peer, type DataConnection } from 'peerjs';
 import { GameEngine, botSlot, newSlot, type EngineIO, type PlayerSlot } from '../core/engine';
 import { freeKind, isKind, takenKinds } from '../core/kinds';
 import { sanitizeGaze, type Gaze } from '../core/gaze';
-import { isVideoId } from '../core/youtube';
-import { setTvVideo } from '../view/tv';
+import { isVideoId, sanitizeVolume } from '../core/youtube';
+import { setTvVideo, setTvVolume, tvVolume } from '../view/tv';
 import { shuffle } from '../core/rng';
 import { isValidPlay } from '../core/rules';
 import { people } from '../core/text';
@@ -196,6 +196,7 @@ export class HostSession implements EngineIO {
     if (msg.t === 'pick') { if (m.seat != null) this.pick(m.seat, msg.kind); return; }
     if (msg.t === 'look') { if (m.seat != null) this.relayGaze(m.seat, msg.g); return; }
     if (msg.t === 'tv') { if (m.seat != null) this.setTv(msg.id, msg.start); return; }
+    if (msg.t === 'tvvol') { if (m.seat != null) this.setTvVolume(msg.v); return; }
     if (msg.t === 'hello' && m.seat == null) this.onHello(conn, m, msg);
   }
 
@@ -331,8 +332,17 @@ export class HostSession implements EngineIO {
     for (const s of this.slots) if (s?.conn) this.send(s.conn, { t: 'tv', id, at: startSec });
   }
 
-  /** Nowy gracz dostaje film, który akurat leci, od bieżącego momentu. */
+  /** Głośność telewizora: jeden pilot dla całego stołu. */
+  setTvVolume(v: unknown): void {
+    const vol = sanitizeVolume(v);
+    if (!vol) return;
+    setTvVolume(vol);
+    for (const s of this.slots) if (s?.conn) this.send(s.conn, { t: 'tvvol', v: vol });
+  }
+
+  /** Nowy gracz dostaje film, który akurat leci (od bieżącego momentu), i aktualną głośność. */
   private sendTvTo(conn: DataConnection): void {
+    this.send(conn, { t: 'tvvol', v: tvVolume() });
     if (this.tv) this.send(conn, { t: 'tv', id: this.tv.id, at: (Date.now() - this.tv.startedAt) / 1000 });
   }
 
