@@ -9,8 +9,9 @@ import { FULL, RELIEF, SPECIAL_DESC, cardLabel, claimText, deckDesc } from '../c
 import type { Card, GameEvent, Kind, Mode, PublicSeat, PublicState, Rank, TableSize, ViewEvent } from '../core/types';
 import { $, esc, hideScreens, sleep } from '../ui/dom';
 import { SFX, initAudio } from './audio';
+import { updateBar } from './bar';
 import { GUN_REST_POS, GUN_REST_Q, fanGeo, fanMat, gun, layoutState, makeCharacter, seatPos, type Character } from './characters';
-import { PILE_Y, bulb, camera, canvas, dustGeo, dustN, mat, renderer, scene, shade, spot, tableTop, tableY } from './scene';
+import { PILE_Y, bulb, cord, camera, canvas, dustGeo, dustN, mat, renderer, scene, shade, spot, tableTop, tableY } from './scene';
 import { CARD_COL, backTex, faceTex } from './textures';
 import { anim, easeOutCubic, moveObj, stepTweens } from './tweens';
 
@@ -452,7 +453,7 @@ export function layout(): void {
   renderer.setSize(w, h, false); camera.aspect = w / h;
   const [base, target, hfov] = CAMERA[V.size][w / h < 0.9 ? 'portrait' : 'landscape'];
   camBase.fromArray(base); camTarget.fromArray(target);
-  shade.visible = bulb.visible = camBase.y < 3.5;
+  shade.visible = bulb.visible = cord.visible = camBase.y < 3.5;
   const vfov = 2 * Math.atan(Math.tan(hfov * Math.PI / 360) / camera.aspect) * 180 / Math.PI;
   camera.fov = Math.min(Math.max(vfov, 46), 90); camera.updateProjectionMatrix();
 }
@@ -515,12 +516,14 @@ function humanGazeTarget(i: number, now: number, out: THREE.Vector3): boolean {
   out.set(x, y, z); return true;
 }
 const clock = new THREE.Clock();
+let lastT = 0;
 const timerEl = $('#timer');
 
 function frame(now: number): void {
   requestAnimationFrame(frame);
-  const t = clock.getElapsedTime();
+  const t = clock.getElapsedTime(), dt = Math.min(0.1, t - lastT); lastT = t;
   stepTweens(now);
+  updateBar(t, dt, camBase.y);
 
   // lampa migocze, kurz unosi się w świetle
   const fl = 1 + Math.sin(t * 13) * 0.015 + Math.sin(t * 31) * 0.01 + (Math.sin(t * 0.7) > 0.985 ? -0.25 : 0);

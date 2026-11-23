@@ -76,6 +76,7 @@ src/
     rng.ts         # losowanie (w testach z ziarnem)
   view/        # grafika 3D i animacje (three.js r128)
     scene.ts, textures.ts, characters.ts, tweens.ts, audio.ts
+    bar.ts         # tło: sala, kontuar, okno z deszczem, szafa grająca, dym
     game-view.ts   # odtwarza zdarzenia od hosta: karty, ruletka, HUD, kamera
   net/         # sieć P2P (PeerJS / WebRTC)
     protocol.ts    # wiadomości host ↔ gracz

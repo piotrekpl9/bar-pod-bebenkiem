@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { canvasTex, feltTex, floorTex, wallTex, woodTex } from './textures';
+import { feltTex, woodTex } from './textures';
 
 // ---------- renderer ----------
 export const canvas = document.querySelector<HTMLCanvasElement>('#c')!;
@@ -12,57 +12,15 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07050a);
-scene.fog = new THREE.FogExp2(0x0a0608, 0.075);
+scene.fog = new THREE.FogExp2(0x0d0806, 0.06);
 export const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 60);
 
 // ---------- pomocnicze ----------
 export function mat(c: number, o: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial { return new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75, metalness: 0.05 }, o)); }
 export function mesh(geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; return o; }
 
-// ---------- sala ----------
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), mat(0x8a7060, { map: floorTex, roughness: 0.9 }));
-floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-const room = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 12), mat(0x6a7a6a, { map: wallTex, side: THREE.BackSide, roughness: 0.95 }));
-room.position.y = 2.5; scene.add(room);
-// wainscot
-const wains = new THREE.Mesh(new THREE.BoxGeometry(11.9, 1.1, 11.9), mat(0x3a2210, { map: woodTex, side: THREE.BackSide }));
-wains.position.y = 0.55; scene.add(wains);
-
-// półka z butelkami
-const shelfZ = -5.6;
+// Sala (ściany, kontuar, dekoracje) jest w bar.ts.
 export const woodM = mat(0x3a2210, { map: woodTex });
-for (const y of [1.3, 1.85, 2.4]) scene.add(mesh(new THREE.BoxGeometry(4.6, 0.06, 0.35), woodM, 0, y, shelfZ));
-scene.add(mesh(new THREE.BoxGeometry(5.0, 0.95, 0.7), woodM, 0, 0.475, shelfZ + 0.6)); // kontuar
-const bottleCols = [0x2d5a2a, 0x6a3a10, 0x8a5a14, 0x1d3a4a, 0x5a1a1a, 0xa08a50];
-for (const y of [1.33, 1.88, 2.43]) {
-  for (let x = -2.1; x < 2.1; x += 0.18 + Math.random() * 0.12) {
-    if (Math.random() < 0.15) continue;
-    const h = 0.22 + Math.random() * 0.14, r = 0.045 + Math.random() * 0.025;
-    const m = new THREE.MeshStandardMaterial({ color: bottleCols[(Math.random() * bottleCols.length) | 0], roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85, emissive: 0x110800 });
-    const b = mesh(new THREE.CylinderGeometry(r, r, h, 10), m, x, y + h / 2, shelfZ + (Math.random() - 0.5) * 0.1);
-    const n = mesh(new THREE.CylinderGeometry(r * 0.35, r * 0.45, h * 0.45, 8), m, 0, h * 0.7, 0);
-    b.add(n); scene.add(b);
-  }
-}
-// neon
-const signTex = canvasTex(1024, 220, (g: CanvasRenderingContext2D, w: number, h: number) => {
-  g.clearRect(0, 0, w, h); g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '96px Sancreek, Georgia, serif'; g.shadowColor = '#ff7a1a'; g.shadowBlur = 36;
-  g.fillStyle = '#ffb060'; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6); g.shadowBlur = 12; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6);
-  g.fillStyle = '#fff1d8'; g.shadowBlur = 0; g.globalAlpha = 0.5; g.fillText('Bar pod Bębenkiem', w / 2, h / 2 + 6);
-});
-const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.77), new THREE.MeshBasicMaterial({ map: signTex, transparent: true, toneMapped: false, depthWrite: false }));
-sign.position.set(0, 3.25, shelfZ - 0.05); scene.add(sign);
-if (document.fonts && document.fonts.load) document.fonts.load('96px Sancreek').then(() => signTex.redraw()).catch(() => {});
-const signLight = new THREE.PointLight(0xff8a30, 1.2, 6, 2); signLight.position.set(0, 3.0, shelfZ + 0.6); scene.add(signLight);
-
-// beczki po bokach
-const barrelM = mat(0x4a2a12, { map: woodTex });
-const hoopM = mat(0x222222, { metalness: 0.7, roughness: 0.4 });
-for (const [x, z] of [[-4.6, -3.8], [4.5, -4.2], [-4.9, 2.5]] as const) {
-  const b = mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.0, 18), barrelM, x, 0.5, z); scene.add(b);
-  for (const y of [-0.32, 0.32]) b.add(mesh(new THREE.CylinderGeometry(0.462, 0.462, 0.06, 18), hoopM, 0, y, 0));
-}
 
 // stół
 export const tableY = 0.82;
@@ -78,13 +36,13 @@ export const tableTop = new THREE.Group(); scene.add(tableTop);
 // lampa
 const shadeM = new THREE.MeshStandardMaterial({ color: 0x1d3a26, metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide });
 export const shade = mesh(new THREE.ConeGeometry(0.42, 0.32, 28, 1, true), shadeM, 0, 2.62, 0); scene.add(shade);
-scene.add(mesh(new THREE.CylinderGeometry(0.008, 0.008, 2.4, 4), mat(0x111111), 0, 3.95, 0));
+export const cord = mesh(new THREE.CylinderGeometry(0.008, 0.008, 2.4, 4), mat(0x111111), 0, 3.95, 0); scene.add(cord);
 export const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffe2a8, toneMapped: false })); bulb.position.set(0, 2.5, 0); scene.add(bulb);
 export const spot = new THREE.SpotLight(0xffb870, 2.6, 9, 0.82, 0.55, 1.2);
 spot.position.set(0, 2.5, 0); spot.target.position.set(0, 0, 0); spot.castShadow = true;
 spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.0004; spot.shadow.camera.near = 0.3; spot.shadow.camera.far = 6;
 scene.add(spot); scene.add(spot.target);
-scene.add(new THREE.HemisphereLight(0x3a4a66, 0x120806, 0.38));
+scene.add(new THREE.HemisphereLight(0x4a5070, 0x1a0c06, 0.55));
 const fill = new THREE.PointLight(0xff9a50, 0.35, 8, 2); fill.position.set(0, 1.6, 2.6); scene.add(fill);
 
 // kurz w świetle lampy
