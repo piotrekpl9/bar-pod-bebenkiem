@@ -5,6 +5,8 @@ import { Peer, type DataConnection } from 'peerjs';
 import { GameEngine, botSlot, newSlot, type EngineIO, type PlayerSlot } from '../core/engine';
 import { freeKind, isKind, takenKinds } from '../core/kinds';
 import { sanitizeGaze, type Gaze } from '../core/gaze';
+import { isVideoId } from '../core/youtube';
+import { setTvVideo } from '../view/tv';
 import { shuffle } from '../core/rng';
 import { isValidPlay } from '../core/rules';
 import { people } from '../core/text';
@@ -44,6 +46,8 @@ export class HostSession implements EngineIO {
   private hbLast = Date.now();
   /** losowanie miejsc przed każdą partią */
   shuffleSeats = true;
+  /** co leci w telewizorze (wspólne dla całego pokoju) */
+  private tv: { id: string; startedAt: number } | null = null;
 
   constructor(public size: TableSize, public mode: Mode, readonly online: boolean, private readonly hooks: HostHooks) {}
 
@@ -191,6 +195,7 @@ export class HostSession implements EngineIO {
     if (msg.t === 'act') { if (m.seat != null) this.act(m.seat, msg.a); return; }
     if (msg.t === 'pick') { if (m.seat != null) this.pick(m.seat, msg.kind); return; }
     if (msg.t === 'look') { if (m.seat != null) this.relayGaze(m.seat, msg.g); return; }
+    if (msg.t === 'tv') { if (m.seat != null) this.setTv(msg.id, msg.start); return; }
     if (msg.t === 'hello' && m.seat == null) this.onHello(conn, m, msg);
   }
 
@@ -205,6 +210,7 @@ export class HostSession implements EngineIO {
       Object.assign(q, { conn, local: false, isBot: false, fill: false });
       m.seat = back;
       this.send(conn, { t: 'welcome', seat: back, code: this.code, token });
+      this.sendTvTo(conn);
       if (this.running) this.resync(back, conn);
       else this.broadcastLobby();
       return;
@@ -220,6 +226,7 @@ export class HostSession implements EngineIO {
     this.slots[free] = { ...newSlot(cleanName(msg.name), kind, false), conn, token: newTok };
     m.seat = free;
     this.send(conn, { t: 'welcome', seat: free, code: this.code, token: newTok });
+    this.sendTvTo(conn);
     this.broadcastLobby();
   }
 
@@ -313,6 +320,20 @@ export class HostSession implements EngineIO {
       const c = this.slots[i]?.conn;
       if (c && i !== seat) this.send(c, { t: 'look', seat, g: gaze });
     }
+  }
+
+  /** Telewizor: ktokolwiek przy stole może puścić filmik albo go wyłączyć; widzą go wszyscy. */
+  setTv(id: unknown, start: unknown): void {
+    const startSec = typeof start === 'number' && Number.isFinite(start) ? Math.max(0, Math.min(start, 86400)) : 0;
+    if (id !== null && !isVideoId(id)) return;
+    this.tv = id ? { id, startedAt: Date.now() - startSec * 1000 } : null;
+    setTvVideo(id, startSec);
+    for (const s of this.slots) if (s?.conn) this.send(s.conn, { t: 'tv', id, at: startSec });
+  }
+
+  /** Nowy gracz dostaje film, który akurat leci, od bieżącego momentu. */
+  private sendTvTo(conn: DataConnection): void {
+    if (this.tv) this.send(conn, { t: 'tv', id: this.tv.id, at: (Date.now() - this.tv.startedAt) / 1000 });
   }
 
   /** Spojrzenie hosta. */

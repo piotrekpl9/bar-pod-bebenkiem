@@ -6,6 +6,7 @@
 <title>Bar pod Bębenkiem</title>
 </head>
 <body>
+<div id="tvLayer"></div>
 <canvas id="c"></canvas>
 <div id="labels"></div>
 <div id="danger"></div>
@@ -15,6 +16,7 @@
   <div id="tablecard"><div class="mini" id="miniCard">K</div><div class="tc-txt"><span id="tableTxt">KARTA STOŁU</span><span id="deckTxt" class="deck"></span></div></div>
 </div>
 <div id="corner">
+  <button class="ico" id="tvBtn" title="Telewizor">📺</button>
   <button class="ico" id="soundBtn" title="Dźwięk">🔊</button>
   <button class="ico" id="helpBtn" title="Zasady">?</button>
 </div>
@@ -90,6 +92,18 @@
     <p id="waitHost" class="hide">Czekamy na hosta…</p>
     <button class="linkbtn" id="menuBtn">Menu</button>
   </div>
+</div>
+
+<div id="tvBox" class="hide">
+  <div class="tv-head"><b>📺 Telewizor</b><button class="ico tv-x" id="tvClose" title="Zamknij">✕</button></div>
+  <input class="txt" id="tvUrl" placeholder="Wklej link do YouTube" autocomplete="off">
+  <div class="row tv-row">
+    <button class="act btn-gold" id="tvPlay">Puść</button>
+    <button class="act btn-dark" id="tvOff">Wyłącz</button>
+  </div>
+  <button class="act btn-dark tv-sound" id="tvSound">🔇 Dźwięk TV: wyłączony</button>
+  <div class="small" id="tvNote">Wszyscy przy stole widzą ten sam filmik. Dźwięk każdy włącza u siebie.</div>
+  <div class="status" id="tvStatus"></div>
 </div>
 
 <div id="rulesBox">

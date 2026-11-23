@@ -25,13 +25,16 @@ export type HostMsg =
   | { t: 'kicked' }
   | { t: 'ping' }
   /** gdzie patrzy gracz na miejscu `seat` (tylko wygląd, bez wpływu na grę) */
-  | { t: 'look'; seat: number; g: Gaze };
+  | { t: 'look'; seat: number; g: Gaze }
+  /** telewizor: filmik (null = wyłączony) i od której sekundy */
+  | { t: 'tv'; id: string | null; at: number };
 
 /** Wiadomości gracz → host. */
 export type ClientMsg =
   | { t: 'hello'; name: string; token: string; kind?: Kind }
   | { t: 'pick'; kind: Kind }
   | { t: 'look'; g: Gaze }
+  | { t: 'tv'; id: string | null; start: number }
   | { t: 'act'; a: PlayerAction }
   | { t: 'pong' };
 

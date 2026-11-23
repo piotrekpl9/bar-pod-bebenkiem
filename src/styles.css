@@ -1,6 +1,8 @@
 /* Główne style: HUD, karty, ekrany */
 
-  html,body{margin:0;height:100%;overflow:hidden;background:#07050a;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#f3e6cf;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  html{background:#07050a}
+  /* body bez tła: inaczej zakryłoby warstwę telewizora (#tvLayer, z-index:-1) */
+  html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#f3e6cf;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
   #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
   #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
   .label{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;transition:opacity .4s}
@@ -22,7 +24,7 @@
   @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
   .mini{width:26px;height:36px;border-radius:4px;background:#efe3c8;color:#8e1c1c;display:flex;align-items:center;justify-content:center;font-family:Sancreek,Georgia,serif;font-size:18px}
   #msg{background:rgba(0,0,0,.6);padding:7px 15px;border-radius:14px;font-size:14px;max-width:88vw;text-align:center;line-height:1.35;min-height:19px}
-  #corner{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px;display:flex;gap:6px;z-index:3}
+  #corner{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px;display:flex;gap:6px;z-index:12}
   .ico{width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.5);color:#f3e6cf;font-size:17px;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;cursor:pointer}
 
   #bottom{position:fixed;left:0;right:0;bottom:0;padding:26px 10px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.82) 40%);display:flex;flex-direction:column;align-items:center;gap:9px;z-index:2;transition:box-shadow .3s}
@@ -111,3 +113,14 @@
 .kinds button.on{border-color:#ffc95e;background:rgba(232,194,122,.22)}
 .kinds button:disabled{opacity:.28;cursor:default}
 .kinds button.taken{position:relative}
+
+/* Telewizor: warstwa z odtwarzaczem stoi ZA płótnem 3D (patrz src/view/tv.ts) */
+#tvLayer{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+#tvBox{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 46px);right:10px;width:300px;max-width:calc(100vw - 20px);box-sizing:border-box;z-index:15;background:rgba(20,10,6,.93);border:1px solid rgba(255,201,94,.35);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#tvBox .tv-head{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+#tvBox .tv-x{width:30px;height:30px;font-size:13px}
+#tvBox input.txt{width:100%;box-sizing:border-box;font-size:14px}
+#tvBox .tv-row{margin:0}
+#tvBox .act{font-size:15px;padding:8px 14px}
+#tvBox .tv-sound{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:13px}
+#tvBox .status{margin-top:0;min-height:0}

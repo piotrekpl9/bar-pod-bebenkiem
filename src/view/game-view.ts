@@ -10,6 +10,7 @@ import type { Card, GameEvent, Kind, Mode, PublicSeat, PublicState, Rank, TableS
 import { $, esc, hideScreens, sleep } from '../ui/dom';
 import { SFX, initAudio } from './audio';
 import { updateBar } from './bar';
+import { layoutTv, renderTv } from './tv';
 import { GUN_REST_POS, GUN_REST_Q, fanGeo, fanMat, gun, layoutState, makeCharacter, seatPos, type Character } from './characters';
 import { PILE_Y, bulb, cord, camera, canvas, dustGeo, dustN, mat, renderer, scene, shade, spot, tableTop, tableY } from './scene';
 import { CARD_COL, backTex, faceTex } from './textures';
@@ -451,6 +452,7 @@ const CAMERA: Record<TableSize, { portrait: [number[], number[], number]; landsc
 export function layout(): void {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h;
+  layoutTv(w, h);
   const [base, target, hfov] = CAMERA[V.size][w / h < 0.9 ? 'portrait' : 'landscape'];
   camBase.fromArray(base); camTarget.fromArray(target);
   shade.visible = bulb.visible = cord.visible = camBase.y < 3.5;
@@ -588,6 +590,7 @@ function frame(now: number): void {
   });
 
   renderer.render(scene, camera);
+  renderTv();
 }
 
 export function startRendering(): void {

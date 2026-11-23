@@ -33,6 +33,10 @@ Każdy wybiera postać w menu albo w poczekalni (żaba, robot, sowa, wąsacz, mi
 
 Postać każdego człowieka przy stole obraca głowę tam, gdzie on naprawdę patrzy (przeciąganie widoku). Kiedy patrzysz prosto na kogoś, on widzi, że twoja postać patrzy na niego.
 
+### Telewizor 📺
+
+Na ścianie wisi telewizor. Przycisk 📺 w prawym górnym rogu pozwala wkleić link do YouTube i puścić filmik – w grze online widzą go wszyscy (spóźnieni dołączają od bieżącego momentu). Dźwięk każdy włącza u siebie. YouTube nie odtwarza osadzonych filmów ze strony otwartej z pliku, więc telewizor działa na stronie z linku (GitHub Pages) albo przy `npm run dev`.
+
 ## Jak grać
 
 **Z linkiem:** gra jest na GitHub Pages pod adresem `https://<login>.github.io/<repo>/`. Host klika **Załóż pokój** i **Wyślij zaproszenie**, koledzy wchodzą w link i klikają **Dołącz**. Działa też na telefonach.
@@ -73,10 +77,12 @@ src/
     text.ts        # polskie teksty i odmiana
     kinds.ts       # postacie: wybór bez powtórzeń
     gaze.ts        # spojrzenia: przeliczanie między widokami graczy
+    youtube.ts     # linki YouTube → identyfikator filmu i adres odtwarzacza
     rng.ts         # losowanie (w testach z ziarnem)
   view/        # grafika 3D i animacje (three.js r128)
     scene.ts, textures.ts, characters.ts, tweens.ts, audio.ts
     bar.ts         # tło: sala, kontuar, okno z deszczem, szafa grająca, dym
+    tv.ts          # telewizor: iframe YouTube za „dziurą” w obrazie 3D (CSS3DRenderer)
     game-view.ts   # odtwarza zdarzenia od hosta: karty, ruletka, HUD, kamera
   net/         # sieć P2P (PeerJS / WebRTC)
     protocol.ts    # wiadomości host ↔ gracz

@@ -2,6 +2,8 @@
 
 import { Peer, type DataConnection } from 'peerjs';
 import { sanitizeGaze, type Gaze } from '../core/gaze';
+import { isVideoId } from '../core/youtube';
+import { setTvVideo } from '../view/tv';
 import type { Kind, ViewEvent } from '../core/types';
 import { session } from '../ui/dom';
 import { V, handleEvent, setGaze, type PlayerAction } from '../view/game-view';
@@ -68,6 +70,7 @@ export class ClientSession {
   act(a: PlayerAction): void { this.send({ t: 'act', a }); }
   pick(kind: Kind): void { this.send({ t: 'pick', kind }); }
   look(g: Gaze): void { this.send({ t: 'look', g }); }
+  tv(id: string | null, start: number): void { this.send({ t: 'tv', id, start }); }
 
   private send(msg: ClientMsg): void {
     try { if (this.conn?.open) void this.conn.send(msg); } catch (e) { console.warn(e); }
@@ -92,6 +95,10 @@ export class ClientSession {
         return;
       case 'reject': this.hooks.rejected(msg.reason || 'Host odrzucił połączenie.'); return;
       case 'lobby': this.hooks.lobby(msg); return;
+      case 'tv': {
+        if (msg.id === null || isVideoId(msg.id)) setTvVideo(msg.id, typeof msg.at === 'number' && Number.isFinite(msg.at) ? Math.max(0, msg.at) : 0);
+        return;
+      }
       case 'look': {
         const g = sanitizeGaze(msg.g, V.size);
         if (g && Number.isInteger(msg.seat)) setGaze(msg.seat, g);

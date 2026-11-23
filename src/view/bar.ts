@@ -209,7 +209,7 @@ function framed(tex: THREE.Texture, w: number, h: number, x: number, y: number, 
   const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat(0xffffff, { map: tex, roughness: 0.9 })); p.position.z = 0.025; g.add(p);
 }
 framed(wantedTex, 0.75, 1.0, -4.3, 2.3, BACK + 0.03, 0, 0.04);
-framed(rulesTex, 0.75, 1.0, 4.3, 2.3, BACK + 0.03, 0, -0.03);
+framed(rulesTex, 0.75, 1.0, RIGHT - 0.03, 2.3, -2.5, -Math.PI / 2, -0.03); // tylną ścianę po prawej zajmuje telewizor
 framed(menuTex, 0.7, 0.93, RIGHT - 0.03, 2.4, -1.2, -Math.PI / 2, 0.02);
 const dart = add(new THREE.Mesh(new THREE.CircleGeometry(0.32, 40), mat(0xffffff, { map: dartTex, roughness: 0.8 })));
 dart.position.set(RIGHT - 0.03, 2.1, 1.6); dart.rotation.y = -Math.PI / 2;

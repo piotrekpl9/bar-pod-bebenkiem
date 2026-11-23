@@ -3,7 +3,8 @@ import { feltTex, woodTex } from './textures';
 
 // ---------- renderer ----------
 export const canvas = document.querySelector<HTMLCanvasElement>('#c')!;
-export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// alpha: true – ekran telewizora to przezroczysta „dziura”, przez którą widać odtwarzacz YouTube
+export const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

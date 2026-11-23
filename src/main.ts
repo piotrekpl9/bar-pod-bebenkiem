@@ -11,6 +11,8 @@ import type { Kind } from './core/types';
 import { $, showScreen, status } from './ui/dom';
 import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
 import { initAudio, toggleMute } from './view/audio';
+import { parseYouTube } from './core/youtube';
+import { TV_SUPPORTED, setTvVideo, toggleTvSound } from './view/tv';
 import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
 
 let host: HostSession | null = null;
@@ -92,5 +94,32 @@ const backToMenu = () => { location.href = location.pathname; };
 $('#menuBtn').addEventListener('click', backToMenu);
 $('#leaveBtn').addEventListener('click', backToMenu);
 $('#soundBtn').addEventListener('click', () => { initAudio(); $('#soundBtn').textContent = toggleMute() ? '🔇' : '🔊'; });
+
+// ---------- telewizor ----------
+/** Puszcza filmik u wszystkich: host rozsyła, gracz prosi hosta, bez pokoju – tylko u siebie. */
+function tvSet(id: string | null, start: number): void {
+  if (host) host.setTv(id, start);
+  else if (client) client.tv(id, start);
+  else setTvVideo(id, start);
+}
+const tvBox = $('#tvBox');
+$('#tvBtn').addEventListener('click', () => {
+  tvBox.classList.toggle('hide');
+  if (!TV_SUPPORTED) status('Telewizor działa na stronie z linku (GitHub Pages). Z pliku na dysku YouTube nie pozwala odtwarzać filmów.', '#tvStatus');
+});
+$('#tvClose').addEventListener('click', () => tvBox.classList.add('hide'));
+const playTv = () => {
+  const v = parseYouTube($<HTMLInputElement>('#tvUrl').value);
+  if (!v) { status('To nie wygląda na link do YouTube.', '#tvStatus'); return; }
+  tvSet(v.id, v.start);
+  status('Leci! 📺', '#tvStatus');
+};
+$('#tvPlay').addEventListener('click', playTv);
+$('#tvUrl').addEventListener('keydown', e => { if (e.key === 'Enter') playTv(); });
+$('#tvOff').addEventListener('click', () => { tvSet(null, 0); status('Telewizor wyłączony.', '#tvStatus'); });
+$('#tvSound').addEventListener('click', () => {
+  const on = toggleTvSound();
+  $('#tvSound').textContent = on ? '🔊 Dźwięk TV: włączony' : '🔇 Dźwięk TV: wyłączony';
+});
 
 startRendering();
