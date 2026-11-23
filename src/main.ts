@@ -11,8 +11,8 @@ import type { Kind } from './core/types';
 import { $, showScreen, status } from './ui/dom';
 import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
 import { initAudio, toggleMute } from './view/audio';
-import { parseYouTube } from './core/youtube';
-import { TV_SUPPORTED, setTvVideo, toggleTvSound } from './view/tv';
+import { parseYouTube, tvErrorText } from './core/youtube';
+import { TV_SUPPORTED, onTvError, setTvVideo, toggleTvSound } from './view/tv';
 import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
 
 let host: HostSession | null = null;
@@ -103,16 +103,18 @@ function tvSet(id: string | null, start: number): void {
   else setTvVideo(id, start);
 }
 const tvBox = $('#tvBox');
+onTvError(code => { tvBox.classList.remove('hide'); status(tvErrorText(code), '#tvStatus'); });
+const FILE_NOTE = 'Z pliku na dysku YouTube nie odtwarza filmów. Otwórz grę z linku (GitHub Pages) albo przez npm run dev.';
 $('#tvBtn').addEventListener('click', () => {
   tvBox.classList.toggle('hide');
-  if (!TV_SUPPORTED) status('Telewizor działa na stronie z linku (GitHub Pages). Z pliku na dysku YouTube nie pozwala odtwarzać filmów.', '#tvStatus');
+  if (!TV_SUPPORTED) status(FILE_NOTE, '#tvStatus');
 });
 $('#tvClose').addEventListener('click', () => tvBox.classList.add('hide'));
 const playTv = () => {
   const v = parseYouTube($<HTMLInputElement>('#tvUrl').value);
   if (!v) { status('To nie wygląda na link do YouTube.', '#tvStatus'); return; }
   tvSet(v.id, v.start);
-  status('Leci! 📺', '#tvStatus');
+  status(TV_SUPPORTED ? 'Leci! 📺' : `Wysłane do pozostałych. U ciebie: ${FILE_NOTE}`, '#tvStatus');
 };
 $('#tvPlay').addEventListener('click', playTv);
 $('#tvUrl').addEventListener('keydown', e => { if (e.key === 'Enter') playTv(); });

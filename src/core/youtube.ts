@@ -34,6 +34,18 @@ export function parseTime(t: string | null): number {
   return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
 }
 
+/** Kody błędów odtwarzacza YouTube → komunikat po polsku. */
+export function tvErrorText(code: number): string {
+  switch (code) {
+    case 2: return 'Niepoprawny link do filmu.';
+    case 5: return 'Przeglądarka nie potrafi odtworzyć tego filmu.';
+    case 100: return 'Ten film nie istnieje albo jest prywatny.';
+    case 101: case 150: return 'Autor tego filmu nie pozwala odtwarzać go poza YouTube. Spróbuj innego filmiku.';
+    case 152: case 153: return 'YouTube nie odtwarza filmów na stronie otwartej z pliku na dysku. Otwórz grę z linku (GitHub Pages).';
+    default: return `Błąd odtwarzania YouTube (kod ${code}).`;
+  }
+}
+
 /** Adres odtwarzacza: bez sterowania, wyciszony na start (inaczej przeglądarka zablokuje autoodtwarzanie). */
 export function embedUrl(id: string, startSec: number, origin?: string): string {
   const p = new URLSearchParams({

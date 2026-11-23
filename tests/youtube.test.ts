@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { embedUrl, isVideoId, parseTime, parseYouTube } from '../src/core/youtube';
+import { embedUrl, isVideoId, parseTime, parseYouTube, tvErrorText } from '../src/core/youtube';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -48,5 +48,15 @@ describe('linki do YouTube', () => {
     expect(u.searchParams.get('start')).toBe('12');
     expect(u.searchParams.get('playlist')).toBe(ID);
     expect(u.searchParams.get('origin')).toBe('https://piotrekpl9.github.io');
+  });
+});
+
+describe('błędy odtwarzacza', () => {
+  it('tłumaczy najczęstsze kody', () => {
+    expect(tvErrorText(150)).toMatch(/nie pozwala/);
+    expect(tvErrorText(101)).toMatch(/nie pozwala/);
+    expect(tvErrorText(153)).toMatch(/z pliku/);
+    expect(tvErrorText(100)).toMatch(/prywatny/);
+    expect(tvErrorText(999)).toMatch(/999/);
   });
 });

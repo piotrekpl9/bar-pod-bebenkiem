@@ -44,6 +44,16 @@ const cssScene = new THREE.Scene();
 let iframe: HTMLIFrameElement | null = null;
 let player: CSS3DObject | null = null;
 let soundOn = false;
+let onError: (code: number) => void = () => {};
+/** Wywoływane, gdy odtwarzacz YouTube zgłosi błąd (np. film zablokowany do osadzania). */
+export function onTvError(fn: (code: number) => void): void { onError = fn; }
+window.addEventListener('message', e => {
+  if (!iframe || e.source !== iframe.contentWindow) return;
+  try {
+    const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (d?.event === 'onError' && typeof d.info === 'number') onError(d.info);
+  } catch { /* inne wiadomości nas nie interesują */ }
+});
 
 function post(func: string, args: unknown[] = []): void {
   iframe?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
@@ -55,9 +65,11 @@ function applySound(): void {
 /** Włącza filmik (id) od podanej sekundy albo wyłącza telewizor (null). */
 export function setTvVideo(id: string | null, startSec = 0): void {
   if (player) { cssScene.remove(player); player.element.remove(); player = null; iframe = null; }
-  hole.visible = !!id; darkScreen.visible = !id;
-  (led.material as THREE.MeshBasicMaterial).color.set(id ? 0x20ff40 : 0xff2020);
-  if (!id) return;
+  // z pliku YouTube i tak pokaże tylko błąd, więc ekran zostaje ciemny, a dioda pomarańczowa
+  const show = !!id && TV_SUPPORTED;
+  hole.visible = show; darkScreen.visible = !show;
+  (led.material as THREE.MeshBasicMaterial).color.set(!id ? 0xff2020 : show ? 0x20ff40 : 0xff9020);
+  if (!show) return;
   const box = document.createElement('div');
   box.style.cssText = `width:${PX_W}px;height:${PX_H}px;background:#000;`;
   iframe = document.createElement('iframe');
