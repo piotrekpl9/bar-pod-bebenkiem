@@ -48,14 +48,32 @@ const smokeTex = canvasTex(256, 256, (g: Ctx, w: number, h: number) => {
   }
 });
 
-const rainTex = canvasTex(128, 256, (g: Ctx, w: number, h: number) => {
-  g.fillStyle = '#0b1830'; g.fillRect(0, 0, w, h);
-  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(90,130,200,.35)'); gr.addColorStop(1, 'rgba(20,40,80,0)');
+// Okno: nieruchome niebo z poświatą księżyca i światłami miasta + osobne, przezroczyste warstwy deszczu.
+const skyTex = canvasTex(256, 256, (g: Ctx, w: number, h: number) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0c1a38'); gr.addColorStop(0.7, '#08142a'); gr.addColorStop(1, '#050b18');
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  g.strokeStyle = 'rgba(170,200,255,.35)'; g.lineWidth = 1;
-  for (let i = 0; i < 70; i++) { const x = R() * w, y = R() * h, l = 8 + R() * 20; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 2, y + l); g.stroke(); }
+  const moonG = g.createRadialGradient(w * 0.7, h * 0.22, 0, w * 0.7, h * 0.22, w * 0.45);
+  moonG.addColorStop(0, 'rgba(170,200,255,.55)'); moonG.addColorStop(1, 'rgba(170,200,255,0)');
+  g.fillStyle = moonG; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#03070f'; // dachy w oddali
+  for (let x = 0; x < w; x += 24 + R() * 30) { const bh = 30 + R() * 60; g.fillRect(x, h - bh, 22 + R() * 26, bh); }
+  for (let i = 0; i < 18; i++) { g.fillStyle = R() < 0.5 ? 'rgba(255,200,120,.8)' : 'rgba(255,230,170,.6)'; g.fillRect(R() * w, h - 10 - R() * 60, 3, 4); }
 });
-rainTex.wrapS = rainTex.wrapT = THREE.RepeatWrapping;
+/** Smugi deszczu na przezroczystym tle; rysowane z zawinięciem, więc przewijanie nie ma szwu. */
+function rainLayer(count: number, alpha: number, len: number): THREE.CanvasTexture {
+  const t = canvasTex(128, 256, (g: Ctx, w: number, h: number) => {
+    g.clearRect(0, 0, w, h);
+    g.strokeStyle = `rgba(190,215,255,${alpha})`; g.lineWidth = 1;
+    for (let i = 0; i < count; i++) {
+      const x = R() * w, y = R() * h, l = len * (0.6 + R() * 0.8);
+      for (const dy of [0, -h]) { g.beginPath(); g.moveTo(x, y + dy); g.lineTo(x - 2, y + dy + l); g.stroke(); }
+    }
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+const rainNear = rainLayer(45, 0.5, 22), rainFar = rainLayer(80, 0.22, 12);
+rainFar.repeat.set(1.6, 1.6);
 
 function poster(lines: [string, number, string][], paper = '#d9c49a', w = 256, h = 340): THREE.CanvasTexture {
   return canvasTex(w, h, (g: Ctx) => {
@@ -118,7 +136,8 @@ const jukeTex = canvasTex(128, 256, (g: Ctx, w: number, h: number) => {
 });
 
 // ---------- budowa ----------
-const add = <T extends THREE.Object3D>(o: T): T => { scene.add(o); return o; };
+const barObjects: THREE.Object3D[] = [];
+const add = <T extends THREE.Object3D>(o: T): T => { scene.add(o); barObjects.push(o); return o; };
 const basic = (o: THREE.MeshBasicMaterialParameters) => new THREE.MeshBasicMaterial({ toneMapped: false, ...o });
 
 // podłoga, ściany, sufit
@@ -197,7 +216,10 @@ clock.position.set(-3.0, 3.9, BACK + 0.03);
 
 // ---------- okno z deszczem (zimne światło z zewnątrz) ----------
 const win = new THREE.Group(); win.position.set(LEFT + 0.02, 2.3, -1.6); win.rotation.y = Math.PI / 2; add(win);
-const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: rainTex, color: 0x9ab4ff })); pane.position.z = 0.01; win.add(pane);
+win.add(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: skyTex }))).position.z = 0.01;
+for (const [tex, z] of [[rainFar, 0.014], [rainNear, 0.018]] as const) {
+  win.add(new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.7), basic({ map: tex, transparent: true, depthWrite: false }))).position.z = z;
+}
 const frameM = mat(0x1a100a, { map: woodTex });
 for (const [w, h, x, y] of [[1.7, 0.1, 0, 0.9], [1.7, 0.1, 0, -0.9], [0.1, 1.9, 0.8, 0], [0.1, 1.9, -0.8, 0], [1.6, 0.05, 0, 0], [0.05, 1.8, 0, 0]] as const) {
   win.add(mesh(new THREE.BoxGeometry(w, h, 0.08), frameM, x, y, 0.04));
@@ -270,6 +292,90 @@ for (const [x, z, ry] of [[LEFT + 0.05, -3.4, Math.PI / 2], [LEFT + 0.05, 2.4, M
   spill.position.set(0, -0.1, 0.01); g.add(spill);
 }
 
+// ---------- rekwizyty ----------
+const darkWood = mat(0x24150b, { map: woodTex, roughness: 0.6 });
+
+// pianino przy tylnej ścianie, pod plakatem „Poszukiwany”
+{
+  const g = new THREE.Group(); g.position.set(-4.35, 0, BACK + 0.32); add(g);
+  g.add(mesh(new THREE.BoxGeometry(1.5, 1.25, 0.5), darkWood, 0, 0.625, -0.05));
+  g.add(mesh(new THREE.BoxGeometry(1.5, 0.08, 0.3), darkWood, 0, 0.78, 0.33));
+  g.add(mesh(new THREE.BoxGeometry(1.34, 0.03, 0.16), mat(0xf2ead8, { roughness: 0.4 }), 0, 0.835, 0.3));
+  const blackKey = mat(0x0a0a0a, { roughness: 0.4 });
+  for (let k = 0; k < 26; k++) if (k % 7 !== 2 && k % 7 !== 6) g.add(mesh(new THREE.BoxGeometry(0.028, 0.03, 0.09), blackKey, -0.64 + k * 0.05 + 0.025, 0.855, 0.27));
+  g.add(mesh(new THREE.BoxGeometry(0.5, 0.36, 0.02), mat(0xd8c8a0, { roughness: 0.9 }), 0, 1.06, 0.21)).rotation.x = -0.2; // nuty
+  g.add(mesh(new THREE.BoxGeometry(0.45, 0.04, 0.32), darkWood, 0, 0.46, 0.75)); // ławka
+  for (const [lx, lz] of [[-0.19, 0.62], [0.19, 0.62], [-0.19, 0.88], [0.19, 0.88]] as const) g.add(mesh(new THREE.BoxGeometry(0.04, 0.44, 0.04), darkWood, lx, 0.22, lz));
+  g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 10), mat(0xe8dcc0), 0.55, 1.31, 0));
+  const fm = basic({ color: 0xffb040, transparent: true });
+  g.add(new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 8), fm)).position.set(0.55, 1.4, 0);
+  flames.push({ m: fm, light: null, seed: 3.3 });
+}
+
+// poroże na ścianie
+{
+  const g = new THREE.Group(); g.position.set(LEFT + 0.05, 3.25, -4.0); g.rotation.y = Math.PI / 2; add(g);
+  const bone = mat(0xd8c8a8, { roughness: 0.7 });
+  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.05, 6), darkWood, 0, 0, 0.02)).rotation.x = Math.PI / 2;
+  g.add(mesh(new THREE.SphereGeometry(0.1, 10, 8), bone, 0, 0.02, 0.1));
+  for (const s of [-1, 1]) {
+    const beam = mesh(new THREE.CylinderGeometry(0.018, 0.028, 0.6, 6), bone, s * 0.2, 0.25, 0.12); beam.rotation.z = -s * 0.75; g.add(beam);
+    for (const [h, a] of [[0.12, 0.2], [0.24, 0.35], [0.36, 0.5]] as const) {
+      const tine = mesh(new THREE.CylinderGeometry(0.008, 0.016, 0.2, 5), bone, s * (0.12 + h * 0.6), 0.12 + h * 0.75, 0.12); tine.rotation.z = s * a; g.add(tine);
+    }
+  }
+}
+
+// wieszak z płaszczem i kapeluszem
+{
+  const g = new THREE.Group(); g.position.set(RIGHT - 0.5, 0, 2.8); add(g);
+  g.add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.9, 8), darkWood, 0, 0.95, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.04, 12), darkWood, 0, 0.02, 0));
+  for (let k = 0; k < 4; k++) { const hook = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 5), darkWood, Math.cos(k * 1.57) * 0.08, 1.8, Math.sin(k * 1.57) * 0.08); hook.rotation.set(Math.sin(k * 1.57) * 0.9, 0, -Math.cos(k * 1.57) * 0.9); g.add(hook); }
+  const coat = mesh(new THREE.CylinderGeometry(0.12, 0.26, 1.0, 12, 1, true), mat(0x3a2a20, { side: THREE.DoubleSide, roughness: 0.95 }), 0.02, 1.25, -0.08); coat.rotation.x = 0.08; g.add(coat);
+  g.add(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.015, 20), mat(0x1a1410), 0.08, 1.95, 0.05)).rotation.z = 0.25;
+  g.add(mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.13, 16), mat(0x1a1410), 0.1, 2.02, 0.05)).rotation.z = 0.25;
+}
+
+// skrzynki przy szafie grającej
+const crateM = mat(0x6a4a28, { map: woodTex, roughness: 0.9 });
+for (const [x, y, z, ry, sz] of [[RIGHT - 0.55, 0.3, BACK + 2.1, 0.2, 0.6], [RIGHT - 0.6, 0.85, BACK + 2.05, -0.15, 0.5], [RIGHT - 1.25, 0.25, BACK + 2.25, 0.5, 0.5]] as const) {
+  const c = mesh(new THREE.BoxGeometry(sz, sz, sz), crateM, x, y, z); c.rotation.y = ry; add(c);
+  for (const yy of [-sz * 0.3, sz * 0.3]) c.add(mesh(new THREE.BoxGeometry(sz + 0.01, 0.05, sz + 0.01), darkWood, 0, yy, 0));
+}
+
+// przewrócone krzesło po jakiejś kłótni
+{
+  const g = new THREE.Group(); g.position.set(-3.2, 0.21, -3.3); g.rotation.set(0, 0.7, Math.PI / 2 - 0.15); add(g);
+  g.add(mesh(new THREE.BoxGeometry(0.42, 0.05, 0.42), woodM, 0, 0.0, 0));
+  g.add(mesh(new THREE.BoxGeometry(0.42, 0.55, 0.05), woodM, 0, 0.3, -0.2));
+  for (const [lx, lz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]] as const) g.add(mesh(new THREE.BoxGeometry(0.04, 0.46, 0.04), woodM, lx, -0.23, lz));
+}
+
+// żetony na stolikach i rzutki w tarczy
+const chipCols = [0xb01818, 0x1a1a1a, 0x1a5a9a, 0xe8e0d0];
+for (const [x, z] of [[-4.45, 2.35], [4.65, 3.3], [-4.55, -3.45]] as const) {
+  for (let st = 0; st < 3; st++) {
+    const n = 3 + ((R() * 6) | 0), m = mat(chipCols[(R() * chipCols.length) | 0], { roughness: 0.5 });
+    for (let k = 0; k < n; k++) add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.012, 14), m, x + st * 0.08 - 0.1, 0.79 + k * 0.013, z + (st % 2) * 0.07));
+  }
+}
+for (const [dy, dz] of [[0.05, 0.08], [-0.1, -0.04], [0.15, -0.12]] as const) {
+  const d = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.14, 5), mat(0x8a1010), RIGHT - 0.1, 2.1 + dy, 1.6 + dz);
+  d.rotation.z = Math.PI / 2 + 0.15; add(d);
+}
+
+// popielniczka z papierosem na kontuarze – dym się unosi
+const ash = new THREE.Vector3(-1.6, 1.13, counterZ + 0.12);
+add(mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.035, 16), mat(0x5a5a62, { metalness: 0.5, roughness: 0.4 }), ash.x, ash.y, ash.z));
+add(mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.08, 6), mat(0xf0ece0), ash.x + 0.04, ash.y + 0.03, ash.z)).rotation.z = 1.3;
+add(new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), basic({ color: 0xff5010 }))).position.set(ash.x + 0.08, ash.y + 0.04, ash.z);
+const wisps: { s: THREE.Sprite; phase: number }[] = [];
+for (let i = 0; i < 5; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0, color: 0xe8e8f0 }));
+  add(sp); wisps.push({ s: sp, phase: i / 5 });
+}
+
 // ---------- dym i snop światła lampy ----------
 const smokes: { s: THREE.Sprite; vx: number; x0: number }[] = [];
 for (let i = 0; i < 9; i++) {
@@ -286,12 +392,17 @@ const beam = new THREE.Mesh(
 );
 beam.position.y = 2.45 - 0.825; add(beam);
 
+// Tło nie rzuca cieni: jedyna mapa cieni (lampa nad stołem) jest dla stołu i graczy.
+// Inaczej rekwizyty w stożku lampy kładły na stół ciemne kliny, a telefon liczyłby to niepotrzebnie.
+for (const o of barObjects) o.traverse(c => { c.castShadow = false; });
+
 // ---------- animacja ----------
 /** Wołane co klatkę. `camY` – wysokość kamery (wysoko = widok z góry, chowamy sufit). */
 export function updateBar(t: number, dt: number, camY: number): void {
   upper.visible = camY < H - 0.4;
   for (const sm of smokes) sm.s.visible = upper.visible; // z góry dym zasłaniałby bar
-  rainTex.offset.y = (rainTex.offset.y + dt * 0.9) % 1;
+  rainNear.offset.y = (rainNear.offset.y + dt * 1.4) % 1; // bliższe krople szybciej
+  rainFar.offset.y = (rainFar.offset.y + dt * 0.8) % 1;
   for (const f of flames) {
     const k = 0.8 + Math.sin(t * 9 + f.seed) * 0.12 + Math.sin(t * 23 + f.seed * 3) * 0.08;
     f.m.opacity = 0.7 + k * 0.25;
@@ -300,6 +411,12 @@ export function updateBar(t: number, dt: number, camY: number): void {
   for (const sm of smokes) {
     sm.s.position.x = sm.x0 + Math.sin(t * 0.05 + sm.vx * 40) * 0.8;
     sm.s.material.rotation = Math.sin(t * 0.03 + sm.x0) * 0.2;
+  }
+  for (const w of wisps) { // smużka dymu z papierosa: rośnie, unosi się i znika
+    const k = (t * 0.18 + w.phase) % 1;
+    w.s.position.set(ash.x + 0.08 + Math.sin(t * 1.3 + w.phase * 6) * 0.05 * k, ash.y + 0.06 + k * 0.9, ash.z + Math.cos(t + w.phase * 4) * 0.04 * k);
+    const sc = 0.12 + k * 0.5; w.s.scale.set(sc, sc * 1.4, 1);
+    w.s.material.opacity = Math.sin(k * Math.PI) * 0.35;
   }
   const hue = (t * 0.05) % 1;
   jukeGlow.color.setHSL(hue, 0.6, 0.6);
