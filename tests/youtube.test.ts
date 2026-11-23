@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { embedUrl, isVideoId, parseTime, parseYouTube, sanitizeVolume, tvErrorText } from '../src/core/youtube';
+import { effectiveVolume, embedUrl, isVideoId, parseTime, parseYouTube, sanitizeVolume, tvErrorText } from '../src/core/youtube';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -69,5 +69,17 @@ describe('głośność z sieci', () => {
   });
   it('odrzuca śmieci', () => {
     for (const bad of [null, 5, {}, { volume: '50', muted: false }, { volume: NaN, muted: false }, { volume: 50 }, { volume: 50, muted: 'nie' }]) expect(sanitizeVolume(bad)).toBeNull();
+  });
+});
+
+describe('effectiveVolume', () => {
+  it('mnoży wspólną głośność przez mój pasek', () => {
+    expect(effectiveVolume({ volume: 80, muted: false }, 50, false)).toBe(40);
+    expect(effectiveVolume({ volume: 80, muted: false }, 100, false)).toBe(80);
+  });
+  it('wyciszenie wspólne albo moje daje 0', () => {
+    expect(effectiveVolume({ volume: 80, muted: true }, 100, false)).toBe(0);
+    expect(effectiveVolume({ volume: 80, muted: false }, 100, true)).toBe(0);
+    expect(effectiveVolume({ volume: 80, muted: false }, 0, false)).toBe(0);
   });
 });

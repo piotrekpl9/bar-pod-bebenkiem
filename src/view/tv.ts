@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
-import { DEFAULT_TV_VOLUME, embedUrl, type TvVolume } from '../core/youtube';
+import { DEFAULT_TV_VOLUME, embedUrl, type TvVolume, effectiveVolume } from '../core/youtube';
 import { camera, mat, mesh, scene } from './scene';
 
 /** YouTube nie odtwarza osadzonych filmów ze strony otwartej z pliku (brak adresu strony). */
@@ -63,9 +63,12 @@ function post(func: string, args: unknown[] = []): void {
 }
 /** Wyciszenie tylko u tego gracza – nie zmienia głośności pozostałym. */
 let mutedHere = false;
+/** mój własny suwak (0–100), mnożony przez wspólny */
+let hereVol = 100;
 function applySound(): void {
-  if (mutedHere || vol.muted || vol.volume === 0) post('mute');
-  else { post('unMute'); post('setVolume', [vol.volume]); }
+  const v = effectiveVolume(vol, hereVol, mutedHere);
+  if (!v) post('mute');
+  else { post('unMute'); post('setVolume', [v]); }
 }
 
 /** Włącza filmik (id) od podanej sekundy albo wyłącza telewizor (null). */
@@ -104,6 +107,8 @@ export function setTvVolume(v: TvVolume): void { vol = { ...v }; applySound(); o
 export const tvVolume = (): TvVolume => ({ ...vol });
 export function setTvMutedHere(on: boolean): void { mutedHere = on; applySound(); onVolume(vol); }
 export const tvMutedHere = (): boolean => mutedHere;
+export function setTvHereVolume(v: number): void { hereVol = Math.max(0, Math.min(100, Math.round(v))); applySound(); onVolume(vol); }
+export const tvHereVolume = (): number => hereVol;
 export const tvPlaying = (): boolean => !!player;
 
 export function layoutTv(w: number, h: number): void { css.setSize(w, h); }

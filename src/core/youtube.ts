@@ -68,3 +68,9 @@ export function embedUrl(id: string, startSec: number, origin?: string): string 
   if (origin) p.set('origin', origin);
   return `https://www.youtube-nocookie.com/embed/${id}?${p}`;
 }
+
+/** Głośność u mnie: wspólna × mój suwak (0–100). 0 = wyciszone. */
+export function effectiveVolume(shared: TvVolume, here: number, mutedHere: boolean): number {
+  if (mutedHere || shared.muted) return 0;
+  return Math.round((shared.volume * Math.max(0, Math.min(100, here))) / 100);
+}

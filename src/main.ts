@@ -12,7 +12,7 @@ import { $, showScreen, status, store } from './ui/dom';
 import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegments, prefillCodeFromHash, renderLobby, settings, showEnd, showHostLost } from './ui/screens';
 import { initAudio, toggleMute } from './view/audio';
 import { parseYouTube, tvErrorText, type TvVolume } from './core/youtube';
-import { TV_SUPPORTED, onTvError, onTvVolume, setTvMutedHere, setTvVideo, setTvVolume, tvMutedHere, tvVolume } from './view/tv';
+import { TV_SUPPORTED, onTvError, onTvVolume, setTvHereVolume, setTvMutedHere, setTvVideo, setTvVolume, tvHereVolume, tvMutedHere, tvVolume } from './view/tv';
 import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
 
 let host: HostSession | null = null;
@@ -126,12 +126,19 @@ function tvVolSet(v: TvVolume): void {
   else setTvVolume(v);
 }
 const volInput = $<HTMLInputElement>('#tvVol');
+const hereInput = $<HTMLInputElement>('#tvHereVol');
 function paintVolume(v: TvVolume): void {
   const silent = v.muted || v.volume === 0; // przycisk pokazuje wspólny stan…
   $('#tvMute').textContent = silent ? '🔇' : v.volume < 40 ? '🔈' : '🔊';
-  $('.tv-vol').classList.toggle('off', silent || tvMutedHere()); // …a szarość też wyciszenie u siebie
+  $('.tv-vol').classList.toggle('off', silent);
   if (document.activeElement !== volInput) volInput.value = String(v.volume);
   $('#tvVolTxt').textContent = `${v.volume}%`;
+  // mój pasek
+  const here = tvHereVolume(), hereOff = tvMutedHere() || here === 0;
+  $('#tvMuteHere').textContent = hereOff ? '🔇' : here < 40 ? '🔈' : '🔊';
+  $('.tv-here').classList.toggle('off', hereOff);
+  if (document.activeElement !== hereInput) hereInput.value = String(here);
+  $('#tvHereTxt').textContent = `${here}%`;
 }
 onTvVolume(paintVolume);
 paintVolume(tvVolume());
@@ -147,10 +154,16 @@ volInput.addEventListener('input', () => {
   if (Date.now() - volSentAt > 150) { volSentAt = Date.now(); tvVolSet(v); }
 });
 volInput.addEventListener('change', () => tvVolSet({ volume: Number(volInput.value), muted: false }));
-// wyciszenie tylko u siebie (zapamiętane w przeglądarce)
-const hereBox = $<HTMLInputElement>('#tvMuteHere');
-hereBox.checked = store.get('bpb-tv-mute-here') === '1';
-setTvMutedHere(hereBox.checked);
-hereBox.addEventListener('change', () => { store.set('bpb-tv-mute-here', hereBox.checked ? '1' : '0'); setTvMutedHere(hereBox.checked); });
+// mój pasek: tylko u mnie, zapamiętany w przeglądarce
+const savedHere = Number(store.get('bpb-tv-here-vol') ?? 100);
+setTvHereVolume(Number.isFinite(savedHere) ? savedHere : 100);
+setTvMutedHere(store.get('bpb-tv-mute-here') === '1');
+const setHere = (v: number) => { setTvHereVolume(v); store.set('bpb-tv-here-vol', String(tvHereVolume())); };
+$('#tvMuteHere').addEventListener('click', () => {
+  if (tvHereVolume() === 0) { setHere(60); setTvMutedHere(false); }
+  else setTvMutedHere(!tvMutedHere());
+  store.set('bpb-tv-mute-here', tvMutedHere() ? '1' : '0');
+});
+hereInput.addEventListener('input', () => { if (tvMutedHere()) { setTvMutedHere(false); store.set('bpb-tv-mute-here', '0'); } setHere(Number(hereInput.value)); });
 
 startRendering();

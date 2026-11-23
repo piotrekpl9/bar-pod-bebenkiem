@@ -101,6 +101,7 @@
     <button class="act btn-gold" id="tvPlay">Puść</button>
     <button class="act btn-dark" id="tvOff">Wyłącz</button>
   </div>
+  <div class="small tv-lbl">Dla wszystkich</div>
   <div class="tv-vol">
     <button class="ico" id="tvMute" title="Wycisz / włącz dźwięk">🔇</button>
     <button class="ico" id="tvDown" title="Ciszej">−</button>
@@ -108,8 +109,13 @@
     <button class="ico" id="tvUp" title="Głośniej">+</button>
     <span id="tvVolTxt">60%</span>
   </div>
-  <label class="chk tv-here"><input type="checkbox" id="tvMuteHere"> Wycisz tylko u mnie</label>
-  <div class="small" id="tvNote">Filmik i głośność są wspólne dla wszystkich przy stole – jak jeden pilot. „Wycisz tylko u mnie” nie zmienia nic innym.</div>
+  <div class="small tv-lbl">Tylko u mnie</div>
+  <div class="tv-vol tv-here">
+    <button class="ico" id="tvMuteHere" title="Wycisz tylko u mnie">🔊</button>
+    <input type="range" id="tvHereVol" min="0" max="100" step="5" value="100" aria-label="Moja głośność telewizora">
+    <span id="tvHereTxt">100%</span>
+  </div>
+  <div class="small" id="tvNote">Filmik i górny pasek są wspólne dla wszystkich przy stole – jak jeden pilot. Dolny pasek ścisza telewizor tylko u ciebie.</div>
   <div class="status" id="tvStatus"></div>
 </div>
 
