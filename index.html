@@ -16,6 +16,7 @@
   <div id="tablecard"><div class="mini" id="miniCard">K</div><div class="tc-txt"><span id="tableTxt">KARTA STOŁU</span><span id="deckTxt" class="deck"></span></div></div>
 </div>
 <div id="corner">
+  <button class="ico" id="arcBtn" title="Automat 1v1">🕹️</button>
   <button class="ico" id="tvBtn" title="Telewizor">📺</button>
   <button class="ico" id="soundBtn" title="Dźwięk">🔊</button>
   <button class="ico" id="helpBtn" title="Zasady">?</button>
@@ -77,6 +78,7 @@
       <button class="act btn-gold" id="startBtn">Start</button>
     </div>
     <p id="clientWait" class="hide">Czekamy, aż host zacznie grę…</p>
+    <button class="act btn-dark arcOpen arc-open">🕹️ Automat 1v1</button>
     <div class="status" id="lobbyStatus"></div>
     <button class="linkbtn" id="leaveBtn">Wyjdź</button>
   </div>
@@ -90,8 +92,65 @@
       <button class="act btn-gold" id="againBtn">Jeszcze raz</button>
     </div>
     <p id="waitHost" class="hide">Czekamy na hosta…</p>
+    <button class="act btn-dark arcOpen arc-open">🕹️ Automat 1v1</button>
     <button class="linkbtn" id="menuBtn">Menu</button>
   </div>
+</div>
+
+<div id="arena" class="hide">
+  <div id="arCross"><i></i><i></i><i></i><i></i></div>
+  <div id="arHit"><i></i><i></i><i></i><i></i></div>
+  <div id="arHurt"></div>
+  <div id="arDir"><i></i></div>
+  <div id="arTag" style="display:none"></div>
+  <div id="arTop"><span class="ar-name" id="arMe">Ty</span><b id="arScoreMe">0</b><span id="arClock"></span><b id="arScoreFoe">0</b><span class="ar-name" id="arFoe">?</span></div>
+  <div id="arCenter"><div id="arMsg"></div><div id="arSub"></div></div>
+  <div id="arHp">❤ <b id="arHpN">100</b></div>
+  <div id="arAmmo"><span id="arWeapon">Karabin</span> <b id="arMag">30</b> / <span id="arRes">90</span></div>
+  <div id="arPause" class="ar-panel">
+    <div class="panel">
+      <h1>Automat 1v1</h1>
+      <p id="arVs"></p>
+      <button class="act btn-gold" id="arPlay">Kliknij, żeby grać</button>
+      <ul class="ar-keys">
+        <li><b>WASD</b> ruch · <b>mysz</b> celowanie · <b>LPM</b> strzał</li>
+        <li><b>Spacja</b> skok · <b>C</b> kucanie · <b>Shift</b> cichy chód</li>
+        <li><b>1</b>/<b>2</b>/<b>Q</b>/kółko – zmiana broni · <b>R</b> przeładowanie</li>
+        <li><b>Esc</b> pauza (mecz trwa dalej!)</li>
+        <li>Wygrywa, kto pierwszy wygra 5 rund.</li>
+      </ul>
+      <label class="ar-sens">Czułość myszy <input type="range" id="arSens" min="0.3" max="3" step="0.1" value="1"></label>
+      <button class="linkbtn" id="arQuit">Wyjdź z automatu</button>
+    </div>
+  </div>
+  <div id="arOver" class="ar-panel hide">
+    <div class="panel">
+      <h1 id="arOverTitle">Wygrana!</h1>
+      <div id="arOverScore">5 : 0</div>
+      <p id="arOverText"></p>
+      <div class="row">
+        <button class="act btn-gold" id="arAgain">Jeszcze raz</button>
+        <button class="act btn-dark" id="arBack">Wróć do baru</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="arcBox" class="hide">
+  <div class="tv-head"><b>🕹️ Automat 1v1</b><button class="ico tv-x" id="arcClose" title="Zamknij">✕</button></div>
+  <div class="small">Strzelanka z widokiem z oczu na pustynnej arenie. Mecz do 5 wygranych rund.</div>
+  <div class="small arc-warn hide" id="arcClosed">Automat działa między partiami – w poczekalni albo po grze.</div>
+  <div class="small arc-warn hide" id="arcTouch">Do automatu potrzebna jest klawiatura i myszka.</div>
+  <div class="arc-sec">Trening z botem</div>
+  <div class="seg" id="arcLevels"><button data-l="easy">Łatwy</button><button data-l="normal">Normalny</button><button data-l="hard">Trudny</button></div>
+  <button class="act btn-gold" id="arcBot">Graj z botem</button>
+  <div class="arc-sec">Wyzwij kogoś z pokoju</div>
+  <div id="arcPeople"></div>
+  <div class="status" id="arcStatus"></div>
+</div>
+<div id="arcInvite" class="hide">
+  <div id="arcInvTxt"></div>
+  <div class="row"><button class="act btn-gold" id="arcYes">Przyjmij</button><button class="act btn-dark" id="arcNo">Odrzuć</button></div>
 </div>
 
 <div id="tvBox" class="hide">

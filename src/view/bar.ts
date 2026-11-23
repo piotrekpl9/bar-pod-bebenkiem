@@ -394,6 +394,47 @@ const beam = new THREE.Mesh(
 );
 beam.position.y = 2.45 - 0.825; add(beam);
 
+// ---------- automat 1v1 przy prawej ścianie ----------
+let arcadeBlink = false, arcadeBusy = false;
+const arcadeScreenTex = canvasTex(256, 200, (g: Ctx, w: number, h: number) => {
+  g.fillStyle = '#05060f'; g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 4) { g.fillStyle = 'rgba(80,120,255,.06)'; g.fillRect(0, y, w, 2); } // linie kineskopu
+  g.fillStyle = '#e8c27a'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.fillText('1v1', w / 2, 82);
+  // dwie postacie celujące do siebie
+  g.fillStyle = '#ff6a5a'; g.fillRect(40, 110, 16, 40); g.fillRect(56, 120, 26, 6);
+  g.fillStyle = '#6ab0ff'; g.fillRect(w - 56, 110, 16, 40); g.fillRect(w - 82, 120, 26, 6);
+  g.font = 'bold 20px system-ui, sans-serif';
+  g.fillStyle = arcadeBusy ? '#ff6a5a' : arcadeBlink ? '#9dffb0' : 'rgba(157,255,176,.25)';
+  g.fillText(arcadeBusy ? 'TRWA MECZ' : 'GRAJ!', w / 2, 182);
+});
+const arcadeMarquee = canvasTex(256, 64, (g: Ctx, w: number, h: number) => {
+  const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#5a1a8a'); gr.addColorStop(1, '#1a4a8a');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#ffe08a'; g.font = 'bold 34px Georgia, serif'; g.textAlign = 'center'; g.fillText('AUTOMAT', w / 2, 44);
+});
+/** Automat do gry – kliknięcie w niego otwiera menu pojedynków. */
+export const arcade = new THREE.Group();
+arcade.position.set(RIGHT - 0.45, 0, 1.55); arcade.rotation.y = -Math.PI / 2; add(arcade);
+{
+  const bodyM = mat(0x2a1450, { roughness: 0.5, metalness: 0.2 }), trimM = mat(0x111111, { roughness: 0.4 });
+  arcade.add(mesh(new THREE.BoxGeometry(0.72, 1.05, 0.7), bodyM, 0, 0.525, 0));
+  const panel = mesh(new THREE.BoxGeometry(0.72, 0.08, 0.34), trimM, 0, 1.08, 0.2); panel.rotation.x = 0.35; arcade.add(panel);
+  arcade.add(mesh(new THREE.BoxGeometry(0.72, 0.78, 0.5), bodyM, 0, 1.47, -0.1));
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.42), basic({ map: arcadeScreenTex }));
+  scr.position.set(0, 1.47, 0.155); scr.rotation.x = -0.12; arcade.add(scr);
+  arcade.add(mesh(new THREE.BoxGeometry(0.76, 0.22, 0.6), bodyM, 0, 1.95, -0.05));
+  const mq = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.17), basic({ map: arcadeMarquee })); mq.position.set(0, 1.95, 0.255); arcade.add(mq);
+  // joysticki i przyciski
+  for (const x of [-0.2, 0.14]) {
+    const stick = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 8), trimM, x, 1.16, 0.22); arcade.add(stick);
+    child(arcade, new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), basic({ color: x < 0 ? 0xff4a4a : 0x4a9aff }))).position.set(x, 1.21, 0.22);
+    for (let k = 0; k < 2; k++) child(arcade, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.02, 10), basic({ color: k ? 0xffd04a : 0x9dff6a }))).position.set(x + 0.07 + k * 0.045, 1.115, 0.24);
+  }
+}
+const arcadeLight = add(new THREE.PointLight(0x7a6aff, 0.5, 3, 2)); arcadeLight.position.set(RIGHT - 1.1, 1.5, 1.55);
+/** Napis na ekranie automatu: zwykle „GRAJ!”, a gdy ktoś gra – „TRWA MECZ”. */
+export function setArcadeBusy(on: boolean): void { arcadeBusy = on; arcadeScreenTex.redraw(); }
+
 // Tło nie rzuca cieni: jedyna mapa cieni (lampa nad stołem) jest dla stołu i graczy.
 // Inaczej rekwizyty w stożku lampy kładły na stół ciemne kliny, a telefon liczyłby to niepotrzebnie.
 for (const o of barObjects) o.traverse(c => { c.castShadow = false; });
@@ -426,5 +467,8 @@ export function updateBar(t: number, dt: number, camY: number): void {
   jukeLight.intensity = 0.5 + Math.sin(t * 2.2) * 0.15;
   shelfLight.intensity = 1.05 + Math.sin(t * 0.7) * 0.05;
   moon.intensity = 0.5 + (Math.sin(t * 0.37) > 0.997 ? 1.5 : 0); // czasem błyskawica
+  const blink = Math.floor(t * 1.6) % 2 === 0;
+  if (blink !== arcadeBlink) { arcadeBlink = blink; arcadeScreenTex.redraw(); }
+  arcadeLight.intensity = 0.45 + Math.sin(t * 3) * 0.08;
   sconceGlows.forEach((g, i) => { g.material.opacity = 0.72 + Math.sin(t * 7 + i * 2.1) * 0.04 + Math.sin(t * 19 + i) * 0.03; });
 }

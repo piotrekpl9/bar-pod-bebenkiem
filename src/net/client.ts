@@ -7,7 +7,7 @@ import { setTvVideo, setTvVolume } from '../view/tv';
 import type { Kind, ViewEvent } from '../core/types';
 import { session } from '../ui/dom';
 import { V, handleEvent, setGaze, type PlayerAction } from '../view/game-view';
-import { isMsg, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
+import { isMsg, peerOptions, roomPeerId, sanitizeArc, type ArcMsg, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
 
 export interface ClientHooks {
   welcome(seat: number): void;
@@ -16,6 +16,7 @@ export interface ClientHooks {
   rejected(reason: string): void;
   lost(): void;
   status(text: string): void;
+  arc(from: number, d: ArcMsg): void;
 }
 
 const REJOIN_KEY = 'bpb-rejoin';
@@ -72,6 +73,7 @@ export class ClientSession {
   look(g: Gaze): void { this.send({ t: 'look', g }); }
   tv(id: string | null, start: number): void { this.send({ t: 'tv', id, start }); }
   tvVolume(v: TvVolume): void { this.send({ t: 'tvvol', v }); }
+  arc(d: ArcMsg): void { this.send({ t: 'arc', d }); }
 
   private send(msg: ClientMsg): void {
     try { if (this.conn?.open) void this.conn.send(msg); } catch (e) { console.warn(e); }
@@ -103,6 +105,11 @@ export class ClientSession {
       case 'tvvol': {
         const v = sanitizeVolume(msg.v);
         if (v) setTvVolume(v);
+        return;
+      }
+      case 'arc': {
+        const d = sanitizeArc(msg.d);
+        if (d && Number.isInteger(msg.from)) this.hooks.arc(msg.from, d);
         return;
       }
       case 'look': {

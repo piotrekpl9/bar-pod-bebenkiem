@@ -79,7 +79,8 @@ export function renderLobby(info: LobbyInfo, ctx: LobbyContext): void {
     const li = document.createElement('div');
     li.className = 'seat' + (s ? '' : ' empty') + (i === ctx.mySeat ? ' me' : '');
     const nm = document.createElement('span');
-    nm.textContent = s ? `${KIND_INFO[s.kind]?.emoji ?? ''} ${s.name}` + (i === ctx.mySeat ? ' (ty)' : '') + (s.host ? ' 👑' : '') + (s.isBot ? ' 🤖' : '') : 'wolne miejsce';
+    nm.textContent = s ? `${KIND_INFO[s.kind]?.emoji ?? ''} ${s.name}` + (i === ctx.mySeat ? ' (ty)' : '') + (s.host ? ' 👑' : '') + (s.isBot ? ' 🤖' : '') + (s.arena ? ' 🕹️' : '') : 'wolne miejsce';
+    if (s?.arena) li.title = 'Gra na automacie';
     li.appendChild(nm);
     if (ctx.isHost && s && !s.host) {
       const k = document.createElement('button');

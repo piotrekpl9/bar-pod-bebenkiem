@@ -16,7 +16,7 @@ export function initAudio(): void {
 
 export function toggleMute(): boolean { muted = !muted; return muted; }
 
-function noise(dur: number, freq: number, type: BiquadFilterType, gain: number, decay: number, q = 1): void {
+export function noise(dur: number, freq: number, type: BiquadFilterType, gain: number, decay: number, q = 1): void {
   if (!ctx || muted) return;
   const len = Math.max(1, (ctx.sampleRate * dur) | 0);
   const b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
@@ -28,7 +28,7 @@ function noise(dur: number, freq: number, type: BiquadFilterType, gain: number, 
   s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t); s.stop(t + dur);
 }
 
-function tone(freq: number, dur: number, gain: number, type: OscillatorType = 'sine', slide?: number): void {
+export function tone(freq: number, dur: number, gain: number, type: OscillatorType = 'sine', slide?: number): void {
   if (!ctx || muted) return;
   const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
   o.type = type; o.frequency.setValueAtTime(freq, t);

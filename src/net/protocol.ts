@@ -12,9 +12,33 @@ export interface LobbyInfo {
   mode: Mode;
   running: boolean;
   /** host = gospodarz pokoju (nie da się go wyrzucić) */
-  seats: ({ name: string; isBot: boolean; kind: Kind; host: boolean } | null)[];
+  seats: ({ name: string; isBot: boolean; kind: Kind; host: boolean; arena?: boolean } | null)[];
   /** czy host losuje miejsca przed partią */
   shuffle: boolean;
+}
+
+/** Automat 1v1: zaproszenia, odpowiedzi i wiadomości pojedynku (host tylko je przekazuje). */
+export type ArcMsg =
+  | { k: 'inv'; to: number }
+  | { k: 'ans'; to: number; ok: boolean }
+  | { k: 'd'; to: number; m: unknown }
+  /** „gram na automacie” (vs = miejsce przeciwnika, −1 = bot, null = wyszedłem) */
+  | { k: 'in'; vs: number | null }
+  /** host zaczyna partię – wszyscy wracają z automatu */
+  | { k: 'stop' };
+
+export function sanitizeArc(d: unknown): ArcMsg | null {
+  if (!d || typeof d !== 'object') return null;
+  const o = d as Record<string, unknown>;
+  const seat = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < 8;
+  switch (o.k) {
+    case 'inv': return seat(o.to) ? { k: 'inv', to: o.to } : null;
+    case 'ans': return seat(o.to) ? { k: 'ans', to: o.to, ok: !!o.ok } : null;
+    case 'd': return seat(o.to) ? { k: 'd', to: o.to, m: o.m } : null;
+    case 'in': return { k: 'in', vs: seat(o.vs) || o.vs === -1 ? (o.vs as number) : null };
+    case 'stop': return { k: 'stop' };
+    default: return null;
+  }
 }
 
 /** Wiadomości host → gracz. */
@@ -30,7 +54,9 @@ export type HostMsg =
   /** telewizor: filmik (null = wyłączony) i od której sekundy */
   | { t: 'tv'; id: string | null; at: number }
   /** głośność telewizora – wspólna dla stołu */
-  | { t: 'tvvol'; v: TvVolume };
+  | { t: 'tvvol'; v: TvVolume }
+  /** automat 1v1: wiadomość od gracza z miejsca `from` */
+  | { t: 'arc'; from: number; d: ArcMsg };
 
 /** Wiadomości gracz → host. */
 export type ClientMsg =
@@ -40,6 +66,7 @@ export type ClientMsg =
   | { t: 'tv'; id: string | null; start: number }
   | { t: 'tvvol'; v: TvVolume }
   | { t: 'act'; a: PlayerAction }
+  | { t: 'arc'; d: ArcMsg }
   | { t: 'pong' };
 
 /** Nazwa pokoju na serwerze PeerJS. Zmiana „v1” rozdziela niekompatybilne wersje gry. */

@@ -13,7 +13,9 @@ import { initMenuKindPicker, initRules, initSegments, initShareButton, paintSegm
 import { initAudio, toggleMute } from './view/audio';
 import { parseYouTube, tvErrorText, type TvVolume } from './core/youtube';
 import { TV_SUPPORTED, onTvError, onTvVolume, setTvHereVolume, setTvMutedHere, setTvVideo, setTvVolume, tvHereVolume, tvMutedHere, tvVolume } from './view/tv';
-import { V, bindView, endTurnUI, setMySeat, startRendering } from './view/game-view';
+import { V, bindView, endTurnUI, setFrameHook, setMySeat, startRendering } from './view/game-view';
+import { arcadeLobby, arcadeReceive, arcadeStop, initArcade } from './arena/arcade';
+import { arenaFrame } from './arena/view';
 
 let host: HostSession | null = null;
 let client: ClientSession | null = null;
@@ -24,7 +26,7 @@ const lobbyCtx = () => ({
   kick: (i: number) => host?.kick(i),
   pick: (k: Kind) => (host ? host.pick(host.localSeat, k) : client?.pick(k)),
 });
-const showLobby = (info: LobbyInfo) => renderLobby(info, lobbyCtx());
+const showLobby = (info: LobbyInfo) => { renderLobby(info, lobbyCtx()); arcadeLobby(info); };
 
 bindView({
   send: a => (host ? host.act(V.mySeat, a) : client?.act(a)),
@@ -57,6 +59,7 @@ $('#createBtn').addEventListener('click', () => {
     opened: code => { location.hash = code; showScreen('#lobbyScreen'); },
     lobby: showLobby,
     status: t => status(t),
+    arc: arcadeReceive,
   });
   host.open(settings.nick(), settings.kind);
 });
@@ -69,10 +72,11 @@ function join(): void {
   client = new ClientSession({
     welcome: seat => { setMySeat(seat); showScreen('#lobbyScreen'); },
     lobby: showLobby,
-    kicked: () => { endTurnUI(); showScreen('#menuScreen'); status('Host wyrzucił cię z pokoju.'); },
+    kicked: () => { arcadeStop(); endTurnUI(); showScreen('#menuScreen'); status('Host wyrzucił cię z pokoju.'); },
     rejected: reason => { status(reason); showScreen('#menuScreen'); },
-    lost: () => { endTurnUI(); showHostLost(); },
+    lost: () => { arcadeStop(); endTurnUI(); showHostLost(); },
     status: t => status(t),
+    arc: arcadeReceive,
   });
   client.join(code, settings.nick(), settings.kind);
 }
@@ -165,5 +169,17 @@ $('#tvMuteHere').addEventListener('click', () => {
   store.set('bpb-tv-mute-here', tvMutedHere() ? '1' : '0');
 });
 hereInput.addEventListener('input', () => { if (tvMutedHere()) { setTvMutedHere(false); store.set('bpb-tv-mute-here', '0'); } setHere(Number(hereInput.value)); });
+
+// ---------- automat 1v1 ----------
+const anyScreen = () => ['#menuScreen', '#lobbyScreen', '#endScreen'].some(s => !$(s).classList.contains('hide'));
+initArcade({
+  online: () => !!(host?.online || client),
+  mySeat: () => (host ? host.localSeat : V.mySeat),
+  myName: () => settings.nick(),
+  send: d => (host ? host.arc(d) : client?.arc(d)),
+  // automat działa między partiami: w menu, poczekalni i na ekranie końca gry
+  cardGameRunning: () => !anyScreen(),
+});
+setFrameHook(arenaFrame);
 
 startRendering();

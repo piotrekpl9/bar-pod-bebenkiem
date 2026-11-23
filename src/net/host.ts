@@ -13,7 +13,7 @@ import { people } from '../core/text';
 import type { Action, Card, GameEvent, Kind, Mode, TableSize, TurnRequest } from '../core/types';
 import { sleep } from '../ui/dom';
 import { drained, handleEvent, setGaze, type PlayerAction } from '../view/game-view';
-import { cleanName, genCode, isMsg, newToken, peerOptions, roomPeerId, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
+import { cleanName, genCode, isMsg, newToken, peerOptions, roomPeerId, sanitizeArc, type ArcMsg, type ClientMsg, type HostMsg, type LobbyInfo } from './protocol';
 
 export interface HostSlot extends PlayerSlot {
   /** gracz siedzący przy tym komputerze (host) */
@@ -21,6 +21,8 @@ export interface HostSlot extends PlayerSlot {
   conn?: DataConnection | null;
   /** pozwala wrócić na to samo miejsce po odświeżeniu strony */
   token?: string | null;
+  /** gra na automacie: miejsce przeciwnika, −1 = bot, null/brak = nie gra */
+  arena?: number | null;
 }
 
 export interface HostHooks {
@@ -28,6 +30,8 @@ export interface HostHooks {
   opened(code: string): void;
   lobby(info: LobbyInfo): void;
   status(text: string): void;
+  /** automat 1v1: wiadomość do gracza siedzącego przy tym komputerze */
+  arc?(from: number, d: ArcMsg): void;
 }
 
 interface Pending { seat: number; req: TurnRequest; deadline: number; timer: number; res: (a: Action) => void }
@@ -46,6 +50,7 @@ export class HostSession implements EngineIO {
   private hbLast = Date.now();
   /** losowanie miejsc przed każdą partią */
   shuffleSeats = true;
+  private arcWarnAt = 0;
   /** co leci w telewizorze (wspólne dla całego pokoju) */
   private tv: { id: string; startedAt: number } | null = null;
 
@@ -123,8 +128,17 @@ export class HostSession implements EngineIO {
     setInterval(() => this.heartbeat(), PING_MS);
   }
 
-  /** Start partii z poczekalni. Zwraca komunikat błędu albo null. */
+  /** Start partii z poczekalni. Zwraca komunikat błędu albo null.
+   *  Gdy ktoś gra na automacie, pierwsze kliknięcie tylko ostrzega, drugie (w ciągu 8 s) wyciąga go z automatu. */
   startGame(fillBots: boolean): string | null {
+    const players = this.slots.filter(s => s && !s.isBot && s.arena != null).map(s => s!.name);
+    if (players.length) {
+      if (Date.now() - this.arcWarnAt > 8000) {
+        this.arcWarnAt = Date.now();
+        return `Na automacie gra: ${players.join(', ')}. Kliknij Start jeszcze raz, żeby zacząć mimo to.`;
+      }
+      this.stopArcade();
+    }
     // boty z poprzedniej partii i rozłączeni gracze nie przechodzą do następnej
     this.slots = this.slots.map(s => (s && s.isBot && (s.fill || !s.conn) ? null : s));
     if (fillBots) this.fillWithBots();
@@ -197,6 +211,7 @@ export class HostSession implements EngineIO {
     if (msg.t === 'look') { if (m.seat != null) this.relayGaze(m.seat, msg.g); return; }
     if (msg.t === 'tv') { if (m.seat != null) this.setTv(msg.id, msg.start); return; }
     if (msg.t === 'tvvol') { if (m.seat != null) this.setTvVolume(msg.v); return; }
+    if (msg.t === 'arc') { if (m.seat != null) this.arcFrom(m.seat, msg.d); return; }
     if (msg.t === 'hello' && m.seat == null) this.onHello(conn, m, msg);
   }
 
@@ -250,6 +265,9 @@ export class HostSession implements EngineIO {
     const i = m.seat; m.seat = null;
     const s = this.slots[i];
     if (!s || s.conn !== conn) return;
+    // rozłączony w trakcie pojedynku: przeciwnik wygrywa walkowerem
+    if (s.arena != null && s.arena >= 0) this.arcFrom(i, { k: 'd', to: s.arena, m: { k: 'bye' } });
+    s.arena = null;
     if (this.running) this.seatToBot(i, 'rozłączył się');
     else { this.slots[i] = null; this.broadcastLobby(); }
   }
@@ -278,6 +296,44 @@ export class HostSession implements EngineIO {
       this.send(c, { t: 'ping' });
       if (now - m.lastSeen > DEAD_MS) { try { c.close(); } catch { /* już zamknięte */ } this.onClose(c); }
     }
+  }
+
+  // ================= automat 1v1 =================
+
+  /** Wiadomość automatu od gracza z miejsca `from` (także od hosta). */
+  arcFrom(from: number, raw: unknown): void {
+    const d = sanitizeArc(raw);
+    const me = this.slots[from];
+    if (!d || !me || me.isBot) return;
+    if (d.k === 'in') {
+      me.arena = d.vs;
+      this.broadcastLobby();
+      return;
+    }
+    if (d.k === 'stop') return; // tylko host może zatrzymać wszystkich
+    if (d.k === 'inv' && this.running) return;
+    const to = this.slots[d.to];
+    if (!to || to.isBot || d.to === from) return;
+    this.arcDeliver(d.to, from, d);
+  }
+
+  /** Lokalny host coś wysyła z automatu. */
+  arc(d: ArcMsg): void { this.arcFrom(this.localSeat, d); }
+
+  private arcDeliver(to: number, from: number, d: ArcMsg): void {
+    const s = this.slots[to];
+    if (!s) return;
+    if (s.local) this.hooks.arc?.(from, d);
+    else if (s.conn) this.send(s.conn, { t: 'arc', from, d });
+  }
+
+  /** Wszyscy wracają z automatu (zaczyna się partia). */
+  private stopArcade(): void {
+    this.slots.forEach((s, i) => {
+      if (!s || s.isBot) return;
+      if (s.arena != null) this.arcDeliver(i, this.localSeat, { k: 'stop' });
+      s.arena = null;
+    });
   }
 
   // ================= poczekalnia =================
@@ -369,7 +425,7 @@ export class HostSession implements EngineIO {
   lobbyInfo(): LobbyInfo {
     return {
       t: 'lobby', code: this.code, n: this.size, mode: this.mode, running: this.running,
-      seats: this.slots.map(s => (s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot, kind: s.kind, host: !!s.local } : null)),
+      seats: this.slots.map(s => (s && !(s.isBot && s.fill) ? { name: s.name, isBot: s.isBot, kind: s.kind, host: !!s.local, ...(s.arena != null ? { arena: true } : {}) } : null)),
       shuffle: this.shuffleSeats,
     };
   }

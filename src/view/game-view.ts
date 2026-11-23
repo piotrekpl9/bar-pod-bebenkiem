@@ -521,8 +521,13 @@ const clock = new THREE.Clock();
 let lastT = 0;
 const timerEl = $('#timer');
 
+/** Inny widok (automat 1v1) może przejąć klatkę – wtedy bar się nie rysuje. */
+let frameHook: ((now: number) => boolean) | null = null;
+export function setFrameHook(fn: ((now: number) => boolean) | null): void { frameHook = fn; }
+
 function frame(now: number): void {
   requestAnimationFrame(frame);
+  if (frameHook?.(now)) { lastT = clock.getElapsedTime(); return; }
   const t = clock.getElapsedTime(), dt = Math.min(0.1, t - lastT); lastT = t;
   stepTweens(now);
   updateBar(t, dt, camBase.y);

@@ -105,3 +105,14 @@ tests/         # testy core (w tym setki symulowanych partii)
 ## Publikacja
 
 Workflow `.github/workflows/pages.yml` przy każdym pushu na `main` lub `master` sprawdza typy, uruchamia testy, buduje grę i publikuje ją na GitHub Pages (w ustawieniach repo: **Settings → Pages → Source: GitHub Actions**). Przy pull requestach tylko sprawdza.
+
+## Automat 1v1
+
+W barze stoi automat (przy prawej ścianie, a także przycisk 🕹️ w rogu i w poczekalni). To strzelanka FPS 1v1 na autorskiej, pustynnej arenie „Piaskowy Plac” – mapa jest symetryczna, więc obie strony mają równe szanse.
+
+- **Mecz** do 5 wygranych rund, 100 s na rundę. Po czasie punkt dostaje ten, kto ma więcej zdrowia.
+- **Sterowanie**: WASD, mysz, LPM strzał, spacja skok, C kucanie, Shift cichy chód, 1/2/Q/kółko zmiana broni, R przeładowanie. Karabin (seria) i pistolet (kliknięcia), strzał w głowę zabija karabinem jednym trafieniem.
+- **Z botem** (łatwy/normalny/trudny) – gra staje na pauzie przy Esc. **Z kolegą** – wyzwanie z listy ludzi w pokoju; mecz z człowiekiem trwa dalej mimo Esc.
+- Automat działa między partiami w karty. Host, który kliknie Start, gdy ktoś gra, dostaje ostrzeżenie; drugie kliknięcie wyciąga wszystkich z automatu.
+- Wyjście albo rozłączenie przeciwnika daje wygraną walkowerem.
+- Kod: `src/arena/` (logika bez grafiki – `duel.ts`, `physics.ts`, `ray.ts`, `weapons.ts`, `match.ts`, `bot.ts`, `nav.ts` – jest w `tests/arena.test.ts`; widok – `view.ts`, `world.ts`, `models.ts`). Każdy gracz liczy własny ruch i strzały, o śmierci decyduje trafiony, o wyniku rundy – wyzywający.
